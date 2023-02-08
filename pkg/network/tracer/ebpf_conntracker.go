@@ -397,6 +397,7 @@ func getManager(cfg *config.Config, buf io.ReaderAt, maxStateSize int, mapErrTel
 					EBPFFuncName: probes.ConntrackFillInfo,
 					UID:          "conntracker",
 				},
+				MatchFuncName: "^ctnetlink_fill_info(\\.constprop\\.0)?$",
 			},
 		},
 	}
