@@ -490,12 +490,12 @@ func TestTranslationBindingRegression(t *testing.T) {
 }
 
 func TestUnconnectedUDPSendIPv6(t *testing.T) {
-	if !kernel.IsIPv6Enabled() {
+	cfg := testConfig()
+	cfg.CollectIPv6Conns = true
+	if !isTestIPv6Enabled(cfg) {
 		t.Skip("IPv6 not enabled on host")
 	}
 
-	cfg := testConfig()
-	cfg.CollectIPv6Conns = true
 	tr := setupTracer(t, cfg)
 	linkLocal, err := getIPv6LinkLocalAddress()
 	require.NoError(t, err)
@@ -1694,4 +1694,18 @@ func TestPreexistingConnectionDirection(t *testing.T) {
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 	assert.Equal(t, network.OUTGOING, conn.Direction)
 	assert.True(t, conn.IntraHost)
+}
+
+func isTestIPv6Enabled(cfg *config.Config) bool {
+	kv, err := kernel.HostVersion()
+	if err != nil {
+		return false
+	}
+	if kernel.IsIPv6Enabled() {
+		if !cfg.EnableRuntimeCompiler && !cfg.EnableCORE && kv >= kernel.VersionCode(5, 18, 0) {
+			return false
+		}
+		return true
+	}
+	return false
 }

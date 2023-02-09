@@ -260,14 +260,14 @@ func offsetGuessProbes(c *config.Config) (map[probes.ProbeFuncName]struct{}, err
 		enableProbe(p, probes.NetDevQueue)
 	}
 
-	if c.CollectIPv6Conns {
+	kv, err := kernel.HostVersion()
+	if err != nil {
+		return nil, err
+	}
+
+	if c.CollectIPv6Conns && kv < kernel.VersionCode(5, 18, 0) {
 		enableProbe(p, probes.TCPv6Connect)
 		enableProbe(p, probes.TCPv6ConnectReturn)
-
-		kv, err := kernel.HostVersion()
-		if err != nil {
-			return nil, err
-		}
 
 		if kv < kernel.VersionCode(4, 7, 0) {
 			enableProbe(p, probes.IP6MakeSkbPre470)
@@ -652,7 +652,12 @@ func guessOffsets(m *manager.Manager, cfg *config.Config) ([]manager.ConstantEdi
 		Proc:         netebpf.Proc{Comm: cProcName},
 		Ipv6_enabled: enabled,
 	}
-	if !cfg.CollectIPv6Conns {
+	kv, err := kernel.HostVersion()
+	if err != nil {
+		return nil, err
+	}
+	guessIPv6 := cfg.CollectIPv6Conns && kv < kernel.VersionCode(5, 18, 0)
+	if !guessIPv6 {
 		status.Ipv6_enabled = disabled
 	}
 
@@ -662,7 +667,7 @@ func guessOffsets(m *manager.Manager, cfg *config.Config) ([]manager.ConstantEdi
 		return getConstantEditors(status), nil
 	}
 
-	eventGenerator, err := newEventGenerator(cfg.CollectIPv6Conns)
+	eventGenerator, err := newEventGenerator(guessIPv6)
 	if err != nil {
 		return nil, err
 	}
