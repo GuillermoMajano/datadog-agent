@@ -1,0 +1,21 @@
+commit fe7e2651c0d78fc8af73b670c291eea93e4c32d3
+Author: David du Colombier <djc@datadoghq.com>
+Date:   Tue Feb 14 12:02:13 2023 +0100
+
+    Remove reference to PROC_CHECK
+    
+    PROC_CHECK is not defined anymore, since the removal of automake.
+
+diff --git a/src/OVAL/probes/unix/linux/partition_probe.c b/src/OVAL/probes/unix/linux/partition_probe.c
+index ad29b8060..be51f2de8 100644
+--- a/src/OVAL/probes/unix/linux/partition_probe.c
++++ b/src/OVAL/probes/unix/linux/partition_probe.c
+@@ -274,7 +274,7 @@ int partition_probe_main(probe_ctx *ctx, void *probe_arg)
+         const char *prefix = getenv("OSCAP_PROBE_ROOT");
+         snprintf(mnt_path, PATH_MAX, "%s"MTAB_PATH, prefix ? prefix : "");
+ 
+-#if defined(PROC_CHECK) && defined(OS_LINUX)
++#if defined(OS_LINUX)
+         int   mnt_fd;
+         struct statfs stfs;
+ 
