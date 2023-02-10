@@ -34,17 +34,17 @@ build do
   env = with_standard_compiler_flags(with_embedded_path)
 
   # Fixes since release 1.3.7
-  patch source: "0005-Use-correct-format-specifier.patch", env: env
-  patch source: "0006-Fix-leaked-variable.patch", env: env
-  patch source: "0007-Fix-a-leaked-variable.patch", env: env
-  patch source: "0008-Fix-Wint-conversion-error-building-with-clang.patch", env: env
+  patch source: "0006-Use-correct-format-specifier.patch", env: env
+  patch source: "0007-Fix-leaked-variable.patch", env: env
+  patch source: "0008-Fix-a-leaked-variable.patch", env: env
+  patch source: "0009-Fix-Wint-conversion-error-building-with-clang.patch", env: env
+  patch source: "0010-Remove-reference-to-PROC_CHECK.patch", env: env
+  patch source: "0015-Fix-leak-of-session-skip_rules.patch", env: env
+  patch source: "0016-Fix-leak-of-dpkginfo_reply_t-fields.patch", env: env
 
   patch source: "get_results_from_session.patch", env: env
   patch source: "010_perlpm_install_fix.patch", env: env
   patch source: "dpkginfo-cacheconfig.patch", env: env
-  patch source: "remove_proc_check.patch", env: env
-  patch source: "session_skip_rules_leak.patch", env: env
-  patch source: "dpkginfo_reply_leak.patch", env: env
   patch source: "oval_component_evaluate_CONCAT_leak.patch", env: env
   patch source: "dpkginfo-init.patch", env: env
   env["CC"] = "/opt/gcc-#{ENV['GCC_VERSION']}/bin/gcc"

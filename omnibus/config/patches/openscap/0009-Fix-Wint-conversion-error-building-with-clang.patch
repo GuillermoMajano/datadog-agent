@@ -1,7 +1,7 @@
 From 46363d7b303b12eb2ae648c066957562f6823e3a Mon Sep 17 00:00:00 2001
 From: Tom Stellard <tstellar@redhat.com>
 Date: Wed, 1 Feb 2023 04:04:51 +0000
-Subject: [PATCH 8/8] Fix -Wint-conversion error building with clang
+Subject: [PATCH 09/22] Fix -Wint-conversion error building with clang
 
 openscapPYTHON_wrap.c:3734:14: error: incompatible integer to pointer conversion returning 'int' from a function with result type 'char *' [-Wint-conversion]
       return 1;

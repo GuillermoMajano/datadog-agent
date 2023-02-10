@@ -1,0 +1,19 @@
+--- a/src/OVAL/probes/unix/linux/partition_probe.c
++++ b/src/OVAL/probes/unix/linux/partition_probe.c
+@@ -167,6 +167,7 @@ static int collect_item(probe_ctx *ctx, oval_schema_version_t over, struct mnten
+          */
+         const char *prefix = getenv("OSCAP_PROBE_ROOT");
+         snprintf(path, PATH_MAX, "%s%s", prefix ? prefix : "", mnt_ent->mnt_dir);
++printf("collect_item: Get FS stats: path: %s", path);
+         if (statvfs(path, &stvfs) != 0) {
+                 dE("Can't statvfs %s: errno=%d, %s.", path, errno, strerror(errno));
+                 return (-1);
+@@ -286,6 +287,8 @@ int partition_probe_main(probe_ctx *ctx, void *probe_arg)
+                 return (prefix ? PROBE_ESUCCESS : PROBE_ESYSTEM);
+         }
+ 
++printf("partition_probe_main: mnt_path: %s", mnt_path);
++
+         if (fstatfs(mnt_fd, &stfs) != 0) {
+                 close(mnt_fd);
+                 return (prefix ? PROBE_ESUCCESS : PROBE_ESYSTEM);

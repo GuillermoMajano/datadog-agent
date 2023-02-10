@@ -1,7 +1,7 @@
 From d874a64c43cf20607b24657480441f5c0cf2a859 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Jan=20=C4=8Cern=C3=BD?= <jcerny@redhat.com>
 Date: Mon, 30 Jan 2023 11:32:16 +0100
-Subject: [PATCH 6/8] Fix leaked variable
+Subject: [PATCH 07/22] Fix leaked variable
 
 Addressing:
 openscap-1.3.7/utils/oscap-ds.c:403: leaked_storage: Variable "previous_cwd" going out of scope leaks the storage it points to.
