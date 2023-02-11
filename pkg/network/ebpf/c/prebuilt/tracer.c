@@ -119,10 +119,31 @@ int kprobe__tcp_recvmsg__pre_4_1_0(struct pt_regs* ctx) {
     if (flags & MSG_PEEK) {
         return 0;
     }
+    struct sock *skp = (struct sock *)PT_REGS_PARM2(ctx);
+    bpf_map_update_with_telemetry(tcp_recvmsg_args, &pid_tgid, &skp, BPF_ANY);
+    return 0;
+}
 
+SEC("kprobe/tcp_recvmsg/pre_5_19_0")
+int kprobe__tcp_recvmsg__pre_5_19_0(struct pt_regs *ctx) {
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    int flags = (int)PT_REGS_PARM5(ctx);
+    if (flags & MSG_PEEK) {
+        return 0;
+    }
+    struct sock *skp = (struct sock *)PT_REGS_PARM1(ctx);
+    bpf_map_update_with_telemetry(tcp_recvmsg_args, &pid_tgid, &skp, BPF_ANY);
+    return 0;
+}
 
-    void *parm2 = (void*)PT_REGS_PARM2(ctx);
-    struct sock* skp = parm2;
+SEC("kprobe/tcp_recvmsg")
+int kprobe__tcp_recvmsg(struct pt_regs *ctx) {
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    int flags = (int)PT_REGS_PARM4(ctx);
+    if (flags & MSG_PEEK) {
+        return 0;
+    }
+    struct sock *skp = (struct sock *)PT_REGS_PARM1(ctx);
     bpf_map_update_with_telemetry(tcp_recvmsg_args, &pid_tgid, &skp, BPF_ANY);
     return 0;
 }
@@ -350,7 +371,7 @@ int kretprobe__ip_make_skb(struct pt_regs *ctx) {
 // On UDP side, no similar function exists in all kernel versions, though we may be able to use something like
 // skb_consume_udp (v4.10+, https://elixir.bootlin.com/linux/v4.10/source/net/ipv4/udp.c#L1500)
 #define handle_udp_recvmsg(sk, msg, flags, udp_sock_map)           \
-    do {                                                           \
+    {                                                              \
         log_debug("kprobe/udp_recvmsg: flags: %x\n", flags);       \
         if (flags & MSG_PEEK) {                                    \
             return 0;                                              \
@@ -365,18 +386,34 @@ int kretprobe__ip_make_skb(struct pt_regs *ctx) {
         }                                                          \
         bpf_map_update_with_telemetry(udp_sock_map, &pid_tgid, &t, BPF_ANY); \
         return 0;                                                  \
-    } while (0)
+    }
 
 SEC("kprobe/udp_recvmsg")
 int kprobe__udp_recvmsg(struct pt_regs *ctx) {
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
+    int flags = (int)PT_REGS_PARM4(ctx);
+    handle_udp_recvmsg(sk, msg, flags, udp_recv_sock);
+}
+
+SEC("kprobe/udpv6_recvmsg")
+int kprobe__udpv6_recvmsg(struct pt_regs *ctx) {
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
+    int flags = (int)PT_REGS_PARM4(ctx);
+    handle_udp_recvmsg(sk, msg, flags, udpv6_recv_sock);
+}
+
+SEC("kprobe/udp_recvmsg/pre_5_19_0")
+int kprobe__udp_recvmsg_pre_5_19_0(struct pt_regs *ctx) {
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
     int flags = (int)PT_REGS_PARM5(ctx);
     handle_udp_recvmsg(sk, msg, flags, udp_recv_sock);
 }
 
-SEC("kprobe/udpv6_recvmsg")
-int kprobe__udpv6_recvmsg(struct pt_regs *ctx) {
+SEC("kprobe/udpv6_recvmsg/pre_5_19_0")
+int kprobe__udpv6_recvmsg_pre_5_19_0(struct pt_regs *ctx) {
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
     int flags = (int)PT_REGS_PARM5(ctx);
