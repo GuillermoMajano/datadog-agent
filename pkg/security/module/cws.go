@@ -68,7 +68,7 @@ type CWSConsumer struct {
 
 // Init initializes the module with options
 func NewCWSConsumer(evm *eventmonitor.EventMonitor, opts ...Opts) (*CWSConsumer, error) {
-	config, err := config.NewConfig(evm.Config)
+	config, err := config.NewConfig()
 	if err != nil {
 		return nil, fmt.Errorf("invalid security runtime module configuration: %w", err)
 	}

@@ -11,6 +11,7 @@ package probe
 import (
 	"context"
 	"fmt"
+	secconfig "github.com/DataDog/datadog-agent/pkg/security/config"
 	"strings"
 	"sync"
 	"time"
@@ -23,9 +24,9 @@ import (
 	manager "github.com/DataDog/ebpf-manager"
 
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/eventmonitor/config"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/security/api"
-	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf/kernel"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/managerhelper"
@@ -360,8 +361,8 @@ func (adm *ActivityDumpManager) HandleCgroupTracingEvent(event *model.CgroupTrac
 
 	// add local storage requests
 	for _, format := range adm.config.ActivityDumpLocalStorageFormats {
-		newDump.AddStorageRequest(config.NewStorageRequest(
-			config.LocalStorage,
+		newDump.AddStorageRequest(secconfig.NewStorageRequest(
+			secconfig.LocalStorage,
 			format,
 			adm.config.ActivityDumpLocalStorageCompression,
 			adm.config.ActivityDumpLocalStorageDirectory,
@@ -370,8 +371,8 @@ func (adm *ActivityDumpManager) HandleCgroupTracingEvent(event *model.CgroupTrac
 
 	// add remote storage requests
 	for _, format := range adm.config.ActivityDumpRemoteStorageFormats {
-		newDump.AddStorageRequest(config.NewStorageRequest(
-			config.RemoteStorage,
+		newDump.AddStorageRequest(secconfig.NewStorageRequest(
+			secconfig.RemoteStorage,
 			format,
 			adm.config.ActivityDumpRemoteStorageCompression,
 			"",
@@ -396,7 +397,7 @@ func (adm *ActivityDumpManager) DumpActivity(params *api.ActivityDumpParams) (*a
 	})
 
 	// add local storage requests
-	storageRequests, err := config.ParseStorageRequests(params.GetStorage())
+	storageRequests, err := secconfig.ParseStorageRequests(params.GetStorage())
 	if err != nil {
 		errMsg := fmt.Errorf("couldn't start tracing [%s]: %v", newDump.GetSelectorStr(), err)
 		return &api.ActivityDumpMessage{Error: errMsg.Error()}, errMsg
@@ -540,7 +541,7 @@ func (adm *ActivityDumpManager) TranscodingRequest(params *api.TranscodingReques
 	}
 
 	// add transcoding requests
-	storageRequests, err := config.ParseStorageRequests(params.GetStorage())
+	storageRequests, err := secconfig.ParseStorageRequests(params.GetStorage())
 	if err != nil {
 		errMsg := fmt.Errorf("couldn't parse transcoding request for [%s]: %v", ad.GetSelectorStr(), err)
 		return &api.TranscodingRequestMessage{Error: errMsg.Error()}, errMsg
