@@ -24,6 +24,7 @@ import (
 	netlinktestutil "github.com/DataDog/datadog-agent/pkg/network/netlink/testutil"
 	nettestutil "github.com/DataDog/datadog-agent/pkg/network/testutil"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
+	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
 const (
@@ -62,6 +63,15 @@ func TestConntrackers(t *testing.T) {
 				testConntracker(t, net.ParseIP("fd00::1"), net.ParseIP("fd00::2"), ct)
 			})
 			t.Run("cross namespace - NAT rule on test namespace", func(t *testing.T) {
+				if conntracker.name == "netlink" {
+					kv, err := kernel.HostVersion()
+					require.NoError(t, err)
+					if kv >= kernel.VersionCode(5, 19, 0) {
+						// see https://lore.kernel.org/netfilter-devel/CALvGib_xHOVD2+6tKm2Sf0wVkQwut2_z2gksZPcGw30tOvOAAA@mail.gmail.com/T/#u
+						t.Skip("skip due to a kernel bug with conntrack netlink events flowing across namespaces")
+					}
+				}
+
 				cfg := config.New()
 				cfg.EnableConntrackAllNamespaces = true
 				ct, err := conntracker.create(cfg)
