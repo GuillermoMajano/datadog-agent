@@ -6,6 +6,7 @@
 package sbom
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -14,7 +15,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	queue "github.com/DataDog/datadog-agent/pkg/util/aggregatingqueue"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/trivy"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta/telemetry"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/DataDog/agent-payload/v5/sbom"
@@ -30,6 +33,7 @@ type processor struct {
 	workloadmetaStore workloadmeta.Store
 	imageRepoDigests  map[string]string              // Map where keys are image repo digest and values are image ID
 	imageUsers        map[string]map[string]struct{} // Map where keys are image repo digest and values are set of container IDs
+	trivyClient       trivy.Collector
 }
 
 func newProcessor(workloadmetaStore workloadmeta.Store, sender aggregator.Sender, maxNbItem int, maxRetentionTime time.Duration) *processor {
@@ -46,10 +50,11 @@ func newProcessor(workloadmetaStore workloadmeta.Store, sender aggregator.Sender
 		workloadmetaStore: workloadmetaStore,
 		imageRepoDigests:  make(map[string]string),
 		imageUsers:        make(map[string]map[string]struct{}),
+		trivyClient:       trivyClient,
 	}
 }
 
-func (p *processor) processEvents(evBundle workloadmeta.EventBundle) {
+func (p *processor) processContainerImagesEvents(evBundle workloadmeta.EventBundle) {
 	close(evBundle.Ch)
 
 	log.Tracef("Processing %d events", len(evBundle.Events))
@@ -128,14 +133,42 @@ func (p *processor) unregisterContainer(ctr *workloadmeta.Container) {
 	}
 }
 
-func (p *processor) processRefresh(allImages []*workloadmeta.ContainerImageMetadata) {
+func (p *processor) processContainerImagesRefresh(allImages []*workloadmeta.ContainerImageMetadata) {
 	// So far, the check is refreshing all the images every 5 minutes all together.
 	for _, img := range allImages {
-		p.processSBOM(img)
+		p.processImageSBOM(img)
 	}
 }
 
-func (p *processor) processSBOM(img *workloadmeta.ContainerImageMetadata) {
+func (p *processor) processHostRefresh() error {
+	var err error
+
+	cycloneDX, err := p.trivyClient.ScanFilesystem(context.Background(), "/")
+	if err != nil {
+		return err
+	}
+
+	tStartScan := time.Now()
+	scanDuration := time.Since(tStartScan)
+
+	telemetry.SBOMGenerationDuration.Observe(scanDuration.Seconds())
+
+	p.queue <- &model.SBOMEntity{
+		Type:               model.SBOMSourceType_HOST_FILE_SYSTEM,
+		Id:                 p.hostname,
+		GeneratedAt:        timestamppb.New(tStartScan),
+		Tags:               []string{},
+		InUse:              true,
+		GenerationDuration: convertDuration(scanDuration),
+		Sbom: &sbom.SBOMEntity_Cyclonedx{
+			Cyclonedx: convertBOM(cycloneDX),
+		},
+	}
+
+	return nil
+}
+
+func (p *processor) processImageSBOM(img *workloadmeta.ContainerImageMetadata) {
 	if img.SBOM == nil || img.SBOM.CycloneDXBOM == nil {
 		return
 	}
