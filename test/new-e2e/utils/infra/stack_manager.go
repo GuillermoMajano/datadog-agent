@@ -10,19 +10,20 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/debug"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 const (
-	projectName          = "ddagent-e2e"
-	stackPrefix          = "ddagent-e2e"
+	projectName          = "dd-e2e"
 	environmentParamName = "ddinfra:env"
 
 	stackUpTimeout      = 20 * time.Minute
@@ -82,7 +83,7 @@ func (sm *StackManager) GetStack(ctx context.Context, envName string, name strin
 	stackID := stackID(envName, name)
 	stack := sm.stacks[stackID]
 	if stack == nil {
-		newStack, err := getStack(ctx, finalStackName, projectName, deployFunc)
+		newStack, err := getStack(ctx, finalStackName, projectName, runFuncWithRecover(deployFunc))
 		if err != nil {
 			return nil, auto.UpResult{}, err
 		}
@@ -97,8 +98,13 @@ func (sm *StackManager) GetStack(ctx context.Context, envName string, name strin
 	}
 
 	upCtx, cancel := context.WithTimeout(ctx, stackUpTimeout)
+	var loglevel uint = 1
 	defer cancel()
-	upResult, err := stack.Up(upCtx, optup.ProgressStreams(os.Stdout))
+	upResult, err := stack.Up(upCtx, optup.ProgressStreams(os.Stderr), optup.DebugLogging(debug.LoggingOptions{
+		LogToStdErr:   true,
+		FlowToPlugins: true,
+		LogLevel:      &loglevel,
+	}))
 	return stack, upResult, err
 }
 
@@ -159,13 +165,37 @@ func stackName(stackName string) string {
 	if username == "" || username == "root" {
 		username = "nouser"
 	}
+
+	parts := strings.Split(username, ".")
+	if numParts := len(parts); numParts > 1 {
+		var usernameBuilder strings.Builder
+		for _, part := range parts[0 : numParts-1] {
+			usernameBuilder.WriteByte(part[0])
+		}
+		usernameBuilder.WriteString(parts[numParts-1])
+		username = usernameBuilder.String()
+	}
+
 	username = strings.ToLower(username)
-	username = strings.ReplaceAll(username, ".", "-")
 	username = strings.ReplaceAll(username, " ", "-")
 
-	return stackPrefix + "-" + username + "-" + stackName
+	return username + "-" + stackName
 }
 
 func stackID(envName string, stackName string) string {
 	return envName + "/" + stackName
+}
+
+func runFuncWithRecover(f pulumi.RunFunc) pulumi.RunFunc {
+	return func(ctx *pulumi.Context) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				stackDump := make([]byte, 4096)
+				stackSize := runtime.Stack(stackDump, false)
+				err = fmt.Errorf("panic in run function, stack:\n %s", stackDump[:stackSize])
+			}
+		}()
+
+		return f(ctx)
+	}
 }

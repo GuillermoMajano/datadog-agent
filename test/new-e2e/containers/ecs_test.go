@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/utils/infra"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/require"
 
 	datadog "gopkg.in/zorkian/go-datadog-api.v2"
@@ -39,15 +38,15 @@ func TestAgentOnECS(t *testing.T) {
 		"ddinfra:aws/ecs/linuxBottlerocketNodeGroup": auto.ConfigValue{Value: "false"},
 		"ddinfra:aws/ecs/windowsLTSCNodeGroup":       auto.ConfigValue{Value: "false"},
 		"ddagent:apiKey":                             auto.ConfigValue{Value: apiKey, Secret: true},
+		"ddagent:deploy":                             auto.ConfigValue{Value: "true"},
 	}
-	_, stackOutput, err := infra.GetStackManager().GetStack(context.Background(), "aws/sandbox", "ecs-cluster", parameters, func(ctx *pulumi.Context) error {
-		return ecs.Run(ctx)
-	}, false)
+
+	_, stackOutput, err := infra.GetStackManager().GetStack(context.Background(), "aws/sandbox", "ecs-cluster", parameters, ecs.Run, false)
 	require.NoError(t, err)
 
 	ecsClusterName := stackOutput.Outputs["ecs-cluster-name"].Value.(string)
-	ecsTaskFamily := stackOutput.Outputs["ecs-task-family"].Value.(string)
-	ecsTaskVersion := stackOutput.Outputs["ecs-task-version"].Value.(float64)
+	ecsTaskFamily := stackOutput.Outputs["agent-fargate-task-family"].Value.(string)
+	ecsTaskVersion := stackOutput.Outputs["agent-fargate-task-version"].Value.(float64)
 
 	// Check content in Datadog
 	datadogClient := datadog.NewClient(apiKey, appKey)
