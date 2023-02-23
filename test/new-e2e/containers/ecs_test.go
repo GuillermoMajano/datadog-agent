@@ -12,36 +12,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/test-infra-definitions/aws/ecs/ecs"
-	"github.com/cenkalti/backoff"
-
-	"github.com/DataDog/datadog-agent/test/new-e2e/utils/credentials"
+	"github.com/DataDog/datadog-agent/test/new-e2e/runner"
+	"github.com/DataDog/datadog-agent/test/new-e2e/runner/parameters"
 	"github.com/DataDog/datadog-agent/test/new-e2e/utils/infra"
+	"github.com/DataDog/test-infra-definitions/aws/ecs/ecs"
 
+	"github.com/cenkalti/backoff"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/stretchr/testify/require"
-
 	datadog "gopkg.in/zorkian/go-datadog-api.v2"
 )
 
 func TestAgentOnECS(t *testing.T) {
-	// Fetching credentials
-	credentialsManager := credentials.NewManager()
-	apiKey, err := credentialsManager.GetCredential(credentials.AWSSSMStore, "agent.ci.dev.apikey")
-	require.NoError(t, err)
-	appKey, err := credentialsManager.GetCredential(credentials.AWSSSMStore, "agent.ci.dev.appkey")
-	require.NoError(t, err)
-
 	// Creating the stack
-	parameters := auto.ConfigMap{
+	stackConfig := runner.ConfigMap{
 		"ddinfra:aws/ecs/linuxECSOptimizedNodeGroup": auto.ConfigValue{Value: "false"},
 		"ddinfra:aws/ecs/linuxBottlerocketNodeGroup": auto.ConfigValue{Value: "false"},
 		"ddinfra:aws/ecs/windowsLTSCNodeGroup":       auto.ConfigValue{Value: "false"},
-		"ddagent:apiKey":                             auto.ConfigValue{Value: apiKey, Secret: true},
 		"ddagent:deploy":                             auto.ConfigValue{Value: "true"},
 	}
 
-	_, stackOutput, err := infra.GetStackManager().GetStack(context.Background(), "aws/sandbox", "ecs-cluster", parameters, ecs.Run, false)
+	_, stackOutput, err := infra.GetStackManager().GetStack(context.Background(), "ecs-cluster", stackConfig, ecs.Run, false)
 	require.NoError(t, err)
 
 	ecsClusterName := stackOutput.Outputs["ecs-cluster-name"].Value.(string)
@@ -49,6 +40,10 @@ func TestAgentOnECS(t *testing.T) {
 	ecsTaskVersion := stackOutput.Outputs["agent-fargate-task-version"].Value.(float64)
 
 	// Check content in Datadog
+	apiKey, err := runner.GetProfile().ParameterStore().Get(parameters.APIKey)
+	require.NoError(t, err)
+	appKey, err := runner.GetProfile().ParameterStore().Get(parameters.APPKey)
+	require.NoError(t, err)
 	datadogClient := datadog.NewClient(apiKey, appKey)
 	query := fmt.Sprintf("avg:ecs.fargate.cpu.user{ecs_cluster_name:%s,ecs_task_family:%s,ecs_task_version:%.0f} by {ecs_container_name}", ecsClusterName, ecsTaskFamily, ecsTaskVersion)
 	t.Log(query)

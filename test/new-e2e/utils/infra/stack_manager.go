@@ -15,18 +15,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/test/new-e2e/runner"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/debug"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
+	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
+	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 const (
-	projectName          = "dd-e2e"
-	environmentParamName = "ddinfra:env"
+	projectName = "dd-e2e"
 
-	stackUpTimeout      = 20 * time.Minute
+	stackUpTimeout      = 60 * time.Minute
 	stackDestroyTimeout = 60 * time.Minute
 	stackDeleteTimeout  = 20 * time.Minute
 )
@@ -62,37 +64,41 @@ func newStackManager(ctx context.Context) (*StackManager, error) {
 }
 
 // GetStack creates or return a stack based on env+stack name
-func (sm *StackManager) GetStack(ctx context.Context, envName string, name string, config auto.ConfigMap, deployFunc pulumi.RunFunc, failOnMissing bool) (*auto.Stack, auto.UpResult, error) {
+func (sm *StackManager) GetStack(ctx context.Context, name string, config runner.ConfigMap, deployFunc pulumi.RunFunc, failOnMissing bool) (*auto.Stack, auto.UpResult, error) {
 	sm.lock.RLock()
 	defer sm.lock.RUnlock()
 
-	var getStack func(context.Context, string, string, pulumi.RunFunc, ...auto.LocalWorkspaceOption) (auto.Stack, error)
-	if failOnMissing {
-		getStack = auto.SelectStackInlineSource
-	} else {
-		getStack = auto.UpsertStackInlineSource
-	}
+	// Build configuration from profile
+	profile := runner.GetProfile()
+	stackName := buildStackName(name)
+	deployFunc = runFuncWithRecover(deployFunc)
 
-	// Set environment
-	if config == nil {
-		config = auto.ConfigMap{}
+	cm, err := runner.BuildConfigMapFromProfile(profile)
+	if err != nil {
+		return auto.UpResult{}, err
 	}
-	config[environmentParamName] = auto.ConfigValue{Value: envName}
+	cm.Merge(config)
 
-	finalStackName := stackName(name)
-	stackID := stackID(envName, name)
-	stack := sm.stacks[stackID]
+	stack := sm.stacks[name]
 	if stack == nil {
-		newStack, err := getStack(ctx, finalStackName, projectName, runFuncWithRecover(deployFunc))
+		workspace, err := buildWorkspace(ctx, profile, stackName, deployFunc)
+		if err != nil {
+			return auto.UpResult{}, err
+		}
+
+		newStack, err := auto.SelectStack(ctx, stackName, workspace)
+		if auto.IsSelectStack404Error(err) && !failOnMissing {
+			newStack, err = auto.NewStack(ctx, stackName, workspace)
+		}
 		if err != nil {
 			return nil, auto.UpResult{}, err
 		}
 
 		stack = &newStack
-		sm.stacks[stackID] = stack
+		sm.stacks[name] = stack
 	}
 
-	err := stack.SetAllConfig(ctx, config)
+	err = stack.SetAllConfig(ctx, cm.ToPulumi())
 	if err != nil {
 		return nil, auto.UpResult{}, err
 	}
@@ -108,12 +114,11 @@ func (sm *StackManager) GetStack(ctx context.Context, envName string, name strin
 	return stack, upResult, err
 }
 
-func (sm *StackManager) DeleteStack(ctx context.Context, envName string, name string) error {
+func (sm *StackManager) DeleteStack(ctx context.Context, name string) error {
 	sm.lock.Lock()
 	defer sm.lock.Unlock()
 
-	stackID := stackID(envName, name)
-	return sm.deleteStack(ctx, stackID, sm.stacks[stackID])
+	return sm.deleteStack(ctx, name, sm.stacks[name])
 }
 
 func (sm *StackManager) Cleanup(ctx context.Context) []error {
@@ -155,7 +160,24 @@ func (sm *StackManager) deleteStack(ctx context.Context, stackID string, stack *
 	return err
 }
 
-func stackName(stackName string) string {
+func buildWorkspace(ctx context.Context, profile runner.Profile, stackName string, runFunc pulumi.RunFunc) (auto.Workspace, error) {
+	project := workspace.Project{
+		Name:           tokens.PackageName(projectName),
+		Runtime:        workspace.NewProjectRuntimeInfo("go", nil),
+		Description:    pulumi.StringRef("E2E Test inline project"),
+		StackConfigDir: stackName,
+		Config: map[string]workspace.ProjectConfigType{
+			// Always disable
+			"pulumi:disable-default-providers": {
+				Value: []string{"*"},
+			},
+		},
+	}
+
+	return auto.NewLocalWorkspace(ctx, auto.Project(project), auto.Program(runFunc), auto.WorkDir(profile.RootWorkspacePath()))
+}
+
+func buildStackName(stackName string) string {
 	var username string
 	user, err := user.Current()
 	if err == nil {
@@ -182,17 +204,13 @@ func stackName(stackName string) string {
 	return username + "-" + stackName
 }
 
-func stackID(envName string, stackName string) string {
-	return envName + "/" + stackName
-}
-
 func runFuncWithRecover(f pulumi.RunFunc) pulumi.RunFunc {
 	return func(ctx *pulumi.Context) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				stackDump := make([]byte, 4096)
 				stackSize := runtime.Stack(stackDump, false)
-				err = fmt.Errorf("panic in run function, stack:\n %s", stackDump[:stackSize])
+				err = fmt.Errorf("panic in run function, stack:\n %s\n\nerror: %v", stackDump[:stackSize], r)
 			}
 		}()
 

@@ -3,7 +3,9 @@ module github.com/DataDog/datadog-agent/test/new-e2e
 go 1.18
 
 require (
-	github.com/DataDog/test-infra-definitions v0.0.0-20230222105620-96c59edb67f1
+	github.com/DataDog/agent-payload/v5 v5.0.68
+	github.com/DataDog/datadog-api-client-go/v2 v2.9.0
+	github.com/DataDog/test-infra-definitions v0.0.0-20230303143550-e65e01c69701
 	github.com/aws/aws-sdk-go-v2 v1.17.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.4
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.33.2
@@ -15,6 +17,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0
 )
+
+require github.com/alessio/shellescape v1.4.1 // indirect
 
 // Do not upgrade Pulumi deps outside of `test-infra-definitions` bumps.
 // The plugin versions NEEDS to be aligned.

@@ -3,28 +3,28 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package credentials
+package parameters
 
 import "sync"
 
-type store interface {
-	get(key string) (string, error)
+type Store interface {
+	Get(key string) (string, error)
 }
 
 type cachingStore struct {
 	l     sync.Mutex
 	cache map[string]string
-	s     store
+	s     Store
 }
 
-func newCachingStore(s store) store {
+func newCachingStore(s Store) Store {
 	return &cachingStore{
 		cache: make(map[string]string),
 		s:     s,
 	}
 }
 
-func (s *cachingStore) get(key string) (string, error) {
+func (s *cachingStore) Get(key string) (string, error) {
 	s.l.Lock()
 	defer s.l.Unlock()
 
@@ -34,7 +34,7 @@ func (s *cachingStore) get(key string) (string, error) {
 	}
 
 	var err error
-	value, err = s.s.get(key)
+	value, err = s.s.Get(key)
 	if err != nil {
 		return "", err
 	}
