@@ -39,10 +39,10 @@
             "arm64": {
                 "debian-10": "ami-018ce69d4b9c9e3ec",
                 "debian-11": "ami-0d53a3ba77632d713",
-                "debian-12": "ami-08f853af0d61e3b87"
+                "debian-12": "ami-086d7202dafe36247"
             },
             "x86_64": {
-                "debian-12": "ami-0e9e6a060d6ced38a"
+                "debian-12": "ami-05f9d0df23c123e09"
             }
         }
     },
