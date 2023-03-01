@@ -2,6 +2,7 @@
 .build_serverless_common:
   stage: binary_build
   before_script:
+    - source /root/.bashrc
     - !reference [.retrieve_linux_go_deps]
   script:
     - inv check-go-version
@@ -10,6 +11,7 @@
 .check_size_common:
   stage: binary_build
   script:
+    - source /root/.bashrc
     - cd cmd/serverless && go build -ldflags="-w -s" -a -v -tags serverless -o $BINARY_NAME
     - if [[ ! -f "$BINARY_NAME" ]]; then echo "Could not find $BINARY_NAME please investigate/reach the serverless slack channel" && exit 1; fi
     - export CURRENT_SIZE_IN_BYTES=$(ls -l "$BINARY_NAME" | awk '{print $5}')
