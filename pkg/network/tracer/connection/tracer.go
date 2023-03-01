@@ -127,7 +127,8 @@ func NewTracer(config *config.Config, constants []manager.ConstantEditor, bpfTel
 			string(probes.SockByPidFDMap):                    {Type: ebpf.Hash, MaxEntries: uint32(config.MaxTrackedConnections), EditorFlag: manager.EditMaxEntries},
 			string(probes.PidFDBySockMap):                    {Type: ebpf.Hash, MaxEntries: uint32(config.MaxTrackedConnections), EditorFlag: manager.EditMaxEntries},
 			string(probes.ConnectionProtocolMap):             {Type: ebpf.Hash, MaxEntries: uint32(config.MaxTrackedConnections), EditorFlag: manager.EditMaxEntries},
-			string(probes.ConnectionTupleToSocketSKBConnMap): {Type: ebpf.Hash, MaxEntries: uint32(config.MaxTrackedConnections), EditorFlag: manager.EditMaxEntries}},
+			string(probes.ConnectionTupleToSocketSKBConnMap): {Type: ebpf.Hash, MaxEntries: uint32(config.MaxTrackedConnections), EditorFlag: manager.EditMaxEntries},
+			string(probes.TLSConnectionMap):                  {Type: ebpf.Hash, MaxEntries: uint32(config.MaxTrackedConnections), EditorFlag: manager.EditMaxEntries}},
 		ConstantEditors: constants,
 	}
 
@@ -506,6 +507,7 @@ func populateConnStats(stats *network.ConnectionStats, t *netebpf.ConnTuple, s *
 		Cookie:           s.Cookie,
 	}
 
+	stats.StaticTags |= uint64(s.Conn_tags)
 	if network.IsValidProtocolValue(s.Protocol) {
 		stats.Protocol = network.ProtocolType(s.Protocol)
 	} else {
