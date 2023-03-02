@@ -3,9 +3,11 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package module
+//go:build windows
+// +build windows
 
-// Opts define module options
-type Opts struct {
-	EventSender EventSender
+package probe
+
+// Resolvers holds the list of the event attribute resolvers
+type Resolvers struct {
 }

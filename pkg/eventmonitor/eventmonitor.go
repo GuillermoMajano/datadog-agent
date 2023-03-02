@@ -109,7 +109,7 @@ func (m *EventMonitor) Init() error {
 
 // Start the module
 func (m *EventMonitor) Start() error {
-	ln, err := net.Listen("unix", m.Config.SocketPath)
+	ln, err := m.getListener()
 	if err != nil {
 		return fmt.Errorf("unable to register event monitoring module: %w", err)
 	}
