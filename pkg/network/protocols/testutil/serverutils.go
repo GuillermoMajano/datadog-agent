@@ -71,7 +71,11 @@ func RunHostServer(t *testing.T, command []string, env []string, serverStartRege
 	cmd.Stderr = patternScanner
 	cmd.Env = append(cmd.Env, env...)
 	go func() {
-		require.NoErrorf(t, cmd.Run(), "could not start %s on host", serverName)
+		err := cmd.Run()
+		if err != nil {
+			patternScanner.PrintLogs(t)
+		}
+		require.NoErrorf(t, err, "could not start %s on host", serverName)
 	}()
 
 	t.Cleanup(func() {
