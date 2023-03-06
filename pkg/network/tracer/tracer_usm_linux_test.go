@@ -880,7 +880,6 @@ func TestHTTPGoTLSAttachProbes(t *testing.T) {
 }
 
 func TestHTTPSGoTLSAttachProbesOnContainer(t *testing.T) {
-	t.Skip("Skipping a flaky test")
 	if !goTLSSupported(t) {
 		t.Skip("GoTLS not supported for this setup")
 	}
@@ -999,8 +998,11 @@ func testHTTPsGoTLSCaptureNewProcessContainer(t *testing.T, cfg *config.Config) 
 	// problems with aggregation
 	client := &nethttp.Client{
 		Transport: &nethttp.Transport{
-			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
-			DisableKeepAlives: false,
+			ForceAttemptHTTP2: false,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+				NextProtos:         []string{"http/1.1"},
+			},
 		},
 	}
 
