@@ -1205,6 +1205,9 @@ func TestTLSClassification(t *testing.T) {
 				tt.preTracerSetup(t, tt.context)
 			}
 			tr := setupTracer(t, cfg)
+			if tr.ebpfTracer.Type() == connection.EBPFFentry {
+				t.Skip("protocol classification not supported for fentry tracer")
+			}
 			tt.postTracerSetup(t, tt.context)
 			tt.validation(t, tt.context, tr)
 		})
