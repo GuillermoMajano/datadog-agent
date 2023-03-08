@@ -53,6 +53,7 @@ default:
 
 stages:
   - maintenance_jobs
+  - benchmarks
   - deps_build
   - deps_fetch
   - source_test
@@ -60,7 +61,7 @@ stages:
   - binary_build
   - package_deps_build
   - integration_test
-  - benchmarks
+#   - benchmarks
   - package_build
   - internal_deploy
   - kitchen_deploy
@@ -805,6 +806,7 @@ workflow:
   - changes:
       - pkg/trace/**/*
       - .gitlab/benchmarks/*
+      - test/benchmarks/apm_scripts/**/*
     when: on_success
   - when: manual
     allow_failure: true
