@@ -189,6 +189,7 @@ static __always_inline parse_result_t parse_field_literal(http2_iterations_key_t
     return HEADER_INTERESTING;
 }
 
+
 // This function reads the http2 headers frame.
 static __always_inline __u8 filter_relevant_headers(http2_iterations_key_t *iterations_key, http2_ctx_t *http2_ctx, http2_header_t *headers_to_process, __u32 stream_id, heap_buffer_t *heap_buffer) {
     char current_ch;
