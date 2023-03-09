@@ -39,10 +39,6 @@ func TestGRPCScenarios(t *testing.T) {
 		t.Skipf("USM can not run on kernel before %v", http.MinimumKernelVersion)
 	}
 
-	if currKernelVersion < http.HTTP2MinimumKernelVersion {
-		t.Skipf("HTTP2 monitoring can not run on kernel before %v", http.HTTP2MinimumKernelVersion)
-	}
-
 	s, err := grpc.NewServer(srvAddr)
 	require.NoError(t, err)
 	s.Run()
