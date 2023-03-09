@@ -837,6 +837,9 @@ func TestJavaInjection(t *testing.T) {
 				javatestutil.RunJavaVersion(t, "openjdk:15-oraclelinux8", "Wget https://httpbin.org/anything/java-tls-request", regexp.MustCompile("Response code = .*"))
 			},
 			validation: func(t *testing.T, ctx testContext, tr *Tracer) {
+				if tr.ebpfTracer.Type() == connection.EBPFFentry {
+					t.Skip("protocol classification not supported for fentry tracer")
+				}
 				// Iterate through active connections until we find connection created above
 				require.Eventuallyf(t, func() bool {
 					payload := getConnections(t, tr)
