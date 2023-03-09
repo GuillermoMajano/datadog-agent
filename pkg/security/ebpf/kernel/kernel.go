@@ -268,3 +268,8 @@ func (k *Version) HaveMmapableMaps() bool {
 func (k *Version) HaveRingBuffers() bool {
 	return features.HaveMapType(ebpf.RingBuf) == nil
 }
+
+// HaveLegacyPipeInodeInfoStruct returns whether the kernel uses the legacy pipe_inode_info struct
+func (k *Version) HaveLegacyPipeInodeInfoStruct() bool {
+	return k.Code != 0 && k.Code < Kernel5_5
+}
