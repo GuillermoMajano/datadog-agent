@@ -90,6 +90,7 @@ __maybe_unused static __always_inline void protocol_classifier_entrypoint(struct
     // Currently TLS is marked by a connection tag rather than the protocol stack,
     // but as we add support for multiple protocols in the stack, we should revisit this implementation,
     // and unify it with the following if clause.
+    //
     // The connection is TLS encrypted, thus we cannot classify the protocol using socket filter.
     if (is_tls_connection_cached(&skb_tup)) {
         return;
