@@ -175,8 +175,11 @@ platforms:
     name: winrm
     elevated: true
     <% else %>
-    connection_retries: 30
-    connection_retry_sleep: 2
+    connection_timeout: 30
+    connection_retries: 40
+    connection_retry_sleep: 10
+    keepalive_interval: 30
+    keepalive_maxcount: 10
     <% end %>
     <% if sles15 || al2022 %>
     # The AWS EC2 driver doesn't recognize Amazon Linux 2022 yet,
