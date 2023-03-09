@@ -18,6 +18,20 @@ CWS logs have the following JSON schema:
 {
     "$id": "https://github.com/DataDog/datadog-agent/pkg/security/serializers/event",
     "$defs": {
+        "AnomalyDetectionSyscallEvent": {
+            "properties": {
+                "syscall": {
+                    "type": "string",
+                    "description": "Syscall is the name of the syscall that triggered the anomaly detection"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+                "syscall"
+            ],
+            "description": "AnomalyDetectionSyscallEventSerializer serializes an anomaly detection for a syscall event"
+        },
         "BPFEvent": {
             "properties": {
                 "cmd": {
@@ -543,6 +557,49 @@ CWS logs have the following JSON schema:
                 "req_protection"
             ],
             "description": "MProtectEventSerializer serializes a mmap event to JSON"
+        },
+        "MatchedRule": {
+            "properties": {
+                "RuleID": {
+                    "type": "string",
+                    "description": "RuleID is the rule ID of the rule that matched the event"
+                },
+                "RuleVersion": {
+                    "type": "string",
+                    "description": "RuleVersion is the version of the rule that matched the event"
+                },
+                "PolicyName": {
+                    "type": "string",
+                    "description": "PolicyName is the name of the policy of the rule that matched the event"
+                },
+                "PolicyVersion": {
+                    "type": "string",
+                    "description": "PolicyVersion is the version of the policy of the rule that matched the event"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+                "RuleID",
+                "RuleVersion",
+                "PolicyName",
+                "PolicyVersion"
+            ],
+            "description": "MatchedRuleSerializer serializes a matched rule"
+        },
+        "MatchedRulesContext": {
+            "properties": {
+                "matched_rules": {
+                    "items": {
+                        "$ref": "#/$defs/MatchedRule"
+                    },
+                    "type": "array",
+                    "description": "MatchedRules is the list of rules that matched the event"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "description": "MatchedRulesContextSerializer serializes the matched rules"
         },
         "ModuleEvent": {
             "properties": {
@@ -1078,6 +1135,38 @@ CWS logs have the following JSON schema:
             "type": "object",
             "description": "SELinuxEventSerializer serializes a SELinux context to JSON"
         },
+        "SecurityProfileContext": {
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name is the name of the security profile"
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Status is the status in which"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Version is the version of the profile in use"
+                },
+                "tags": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                    "description": "Tags is the list of tags associated to this profile"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+                "name",
+                "status",
+                "version",
+                "tags"
+            ],
+            "description": "SecurityProfileContextSerializer serializes the security profile context in an event"
+        },
         "SignalEvent": {
             "properties": {
                 "type": {
@@ -1182,6 +1271,9 @@ CWS logs have the following JSON schema:
         "mount": {
             "$ref": "#/$defs/MountEvent"
         },
+        "anomaly_detection_syscall": {
+            "$ref": "#/$defs/AnomalyDetectionSyscallEvent"
+        },
         "usr": {
             "$ref": "#/$defs/UserContext"
         },
@@ -1193,6 +1285,12 @@ CWS logs have the following JSON schema:
         },
         "container": {
             "$ref": "#/$defs/ContainerContext"
+        },
+        "matched_rules": {
+            "$ref": "#/$defs/MatchedRulesContext"
+        },
+        "security_profile": {
+            "$ref": "#/$defs/SecurityProfileContext"
         },
         "date": {
             "type": "string",
@@ -1223,11 +1321,40 @@ CWS logs have the following JSON schema:
 | `bind` | $ref | Please see [BindEvent](#bindevent) |
 | `exit` | $ref | Please see [ExitEvent](#exitevent) |
 | `mount` | $ref | Please see [MountEvent](#mountevent) |
+| `anomaly_detection_syscall` | $ref | Please see [AnomalyDetectionSyscallEvent](#anomalydetectionsyscallevent) |
 | `usr` | $ref | Please see [UserContext](#usercontext) |
 | `process` | $ref | Please see [ProcessContext](#processcontext) |
 | `dd` | $ref | Please see [DDContext](#ddcontext) |
 | `container` | $ref | Please see [ContainerContext](#containercontext) |
+| `matched_rules` | $ref | Please see [MatchedRulesContext](#matchedrulescontext) |
+| `security_profile` | $ref | Please see [SecurityProfileContext](#securityprofilecontext) |
 | `date` | string |  |
+
+## `AnomalyDetectionSyscallEvent`
+
+
+{{< code-block lang="json" collapsible="true" >}}
+{
+    "properties": {
+        "syscall": {
+            "type": "string",
+            "description": "Syscall is the name of the syscall that triggered the anomaly detection"
+        }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+        "syscall"
+    ],
+    "description": "AnomalyDetectionSyscallEventSerializer serializes an anomaly detection for a syscall event"
+}
+
+{{< /code-block >}}
+
+| Field | Description |
+| ----- | ----------- |
+| `syscall` | Syscall is the name of the syscall that triggered the anomaly detection |
+
 
 ## `BPFEvent`
 
@@ -2031,6 +2158,76 @@ CWS logs have the following JSON schema:
 | `req_protection` | new memory segment protection |
 
 
+## `MatchedRule`
+
+
+{{< code-block lang="json" collapsible="true" >}}
+{
+    "properties": {
+        "RuleID": {
+            "type": "string",
+            "description": "RuleID is the rule ID of the rule that matched the event"
+        },
+        "RuleVersion": {
+            "type": "string",
+            "description": "RuleVersion is the version of the rule that matched the event"
+        },
+        "PolicyName": {
+            "type": "string",
+            "description": "PolicyName is the name of the policy of the rule that matched the event"
+        },
+        "PolicyVersion": {
+            "type": "string",
+            "description": "PolicyVersion is the version of the policy of the rule that matched the event"
+        }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+        "RuleID",
+        "RuleVersion",
+        "PolicyName",
+        "PolicyVersion"
+    ],
+    "description": "MatchedRuleSerializer serializes a matched rule"
+}
+
+{{< /code-block >}}
+
+| Field | Description |
+| ----- | ----------- |
+| `RuleID` | RuleID is the rule ID of the rule that matched the event |
+| `RuleVersion` | RuleVersion is the version of the rule that matched the event |
+| `PolicyName` | PolicyName is the name of the policy of the rule that matched the event |
+| `PolicyVersion` | PolicyVersion is the version of the policy of the rule that matched the event |
+
+
+## `MatchedRulesContext`
+
+
+{{< code-block lang="json" collapsible="true" >}}
+{
+    "properties": {
+        "matched_rules": {
+            "items": {
+                "$ref": "#/$defs/MatchedRule"
+            },
+            "type": "array",
+            "description": "MatchedRules is the list of rules that matched the event"
+        }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "description": "MatchedRulesContextSerializer serializes the matched rules"
+}
+
+{{< /code-block >}}
+
+| Field | Description |
+| ----- | ----------- |
+| `matched_rules` | MatchedRules is the list of rules that matched the event |
+
+
 ## `ModuleEvent`
 
 
@@ -2810,6 +3007,53 @@ CWS logs have the following JSON schema:
 | [SELinuxBoolChange](#selinuxboolchange) |
 | [SELinuxEnforceStatus](#selinuxenforcestatus) |
 | [SELinuxBoolCommit](#selinuxboolcommit) |
+
+## `SecurityProfileContext`
+
+
+{{< code-block lang="json" collapsible="true" >}}
+{
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Name is the name of the security profile"
+        },
+        "status": {
+            "type": "string",
+            "description": "Status is the status in which"
+        },
+        "version": {
+            "type": "string",
+            "description": "Version is the version of the profile in use"
+        },
+        "tags": {
+            "items": {
+                "type": "string"
+            },
+            "type": "array",
+            "description": "Tags is the list of tags associated to this profile"
+        }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+        "name",
+        "status",
+        "version",
+        "tags"
+    ],
+    "description": "SecurityProfileContextSerializer serializes the security profile context in an event"
+}
+
+{{< /code-block >}}
+
+| Field | Description |
+| ----- | ----------- |
+| `name` | Name is the name of the security profile |
+| `status` | Status is the status in which |
+| `version` | Version is the version of the profile in use |
+| `tags` | Tags is the list of tags associated to this profile |
+
 
 ## `SignalEvent`
 

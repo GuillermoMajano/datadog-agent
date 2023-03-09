@@ -14,6 +14,8 @@ import (
 	"sync"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
+	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
 	"github.com/hashicorp/golang-lru/v2/simplelru"
 	"go.uber.org/atomic"
 
@@ -22,6 +24,7 @@ import (
 	proto "github.com/DataDog/datadog-agent/pkg/security/proto/security_profile/v1"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/cgroup"
 	cgroupModel "github.com/DataDog/datadog-agent/pkg/security/resolvers/cgroup/model"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 )
 
@@ -31,6 +34,10 @@ type SecurityProfileManager struct {
 	statsdClient   statsd.ClientInterface
 	cgroupResolver *cgroup.Resolver
 	providers      []Provider
+
+	manager                    *manager.Manager
+	securityProfileMap         *ebpf.Map
+	securityProfileSyscallsMap *ebpf.Map
 
 	profilesLock sync.Mutex
 	profiles     map[cgroupModel.WorkloadSelector]*SecurityProfile
@@ -42,7 +49,7 @@ type SecurityProfileManager struct {
 }
 
 // NewSecurityProfileManager returns a new instance of SecurityProfileManager
-func NewSecurityProfileManager(config *config.Config, statsdClient statsd.ClientInterface, cgroupResolver *cgroup.Resolver) (*SecurityProfileManager, error) {
+func NewSecurityProfileManager(config *config.Config, statsdClient statsd.ClientInterface, cgroupResolver *cgroup.Resolver, manager *manager.Manager) (*SecurityProfileManager, error) {
 	var providers []Provider
 
 	// instantiate directory provider
@@ -59,15 +66,28 @@ func NewSecurityProfileManager(config *config.Config, statsdClient statsd.Client
 		return nil, fmt.Errorf("couldn't create security profile cache: %w", err)
 	}
 
+	securityProfileMap, ok, _ := manager.GetMap("security_profiles")
+	if !ok {
+		return nil, fmt.Errorf("security_profiles map not found")
+	}
+
+	securityProfileSyscallsMap, ok, _ := manager.GetMap("security_profile_syscalls")
+	if !ok {
+		return nil, fmt.Errorf("security_profile_syscalls map not found")
+	}
+
 	m := &SecurityProfileManager{
-		config:         config,
-		statsdClient:   statsdClient,
-		providers:      providers,
-		cgroupResolver: cgroupResolver,
-		profiles:       make(map[cgroupModel.WorkloadSelector]*SecurityProfile),
-		cache:          profileCache,
-		cacheHit:       atomic.NewUint64(0),
-		cacheMiss:      atomic.NewUint64(0),
+		config:                     config,
+		statsdClient:               statsdClient,
+		providers:                  providers,
+		manager:                    manager,
+		securityProfileMap:         securityProfileMap,
+		securityProfileSyscallsMap: securityProfileSyscallsMap,
+		cgroupResolver:             cgroupResolver,
+		profiles:                   make(map[cgroupModel.WorkloadSelector]*SecurityProfile),
+		cache:                      profileCache,
+		cacheHit:                   atomic.NewUint64(0),
+		cacheMiss:                  atomic.NewUint64(0),
 	}
 
 	// register the manager to the provider(s)
@@ -141,8 +161,13 @@ func (m *SecurityProfileManager) OnWorkloadSelectorResolvedEvent(workload *cgrou
 			// since the profile was in cache, it was removed from kernel space, load it now
 			// (locking isn't necessary here, but added as a safeguard)
 			profile.Lock()
-			m.loadProfile(profile)
+			err := m.loadProfile(profile)
 			profile.Unlock()
+
+			if err != nil {
+				seclog.Errorf("couldn't load security profile %s in kernel space: %v", profile.selector, err)
+				return
+			}
 
 			// insert the profile in the list of active profiles
 			m.profiles[workload.WorkloadSelector] = profile
@@ -212,6 +237,30 @@ func (m *SecurityProfileManager) GetProfile(selector cgroupModel.WorkloadSelecto
 	return m.profiles[selector]
 }
 
+// FillProfileContextFromContainerID returns the profile of a container ID
+func (m *SecurityProfileManager) FillProfileContextFromContainerID(id string, ctx *model.SecurityProfileContext) *SecurityProfile {
+	m.profilesLock.Lock()
+	defer m.profilesLock.Unlock()
+
+	var output *SecurityProfile
+	for _, profile := range m.profiles {
+		profile.Lock()
+		for _, instance := range profile.Instances {
+			instance.Lock()
+			if instance.ID == id {
+				ctx.Name = profile.Metadata.Name
+				ctx.Version = profile.Version
+				ctx.Tags = profile.Tags
+				ctx.Status = profile.Status.String()
+			}
+			instance.Unlock()
+		}
+		profile.Unlock()
+	}
+
+	return output
+}
+
 // OnCGroupDeletedEvent is used to handle a CGroupDeleted event
 func (m *SecurityProfileManager) OnCGroupDeletedEvent(workload *cgroupModel.CacheEntry) {
 	// lookup the profile
@@ -243,6 +292,11 @@ func (m *SecurityProfileManager) ShouldDeleteProfile(profile *SecurityProfile) {
 	// propagate the workload selectors
 	m.propagateWorkloadSelectorsToProviders()
 
+	if profile.loaded {
+		// remove profile from kernel space
+		m.unloadProfile(profile)
+	}
+
 	// cleanup profile before insertion in cache
 	profile.reset()
 
@@ -250,9 +304,6 @@ func (m *SecurityProfileManager) ShouldDeleteProfile(profile *SecurityProfile) {
 	m.cacheLock.Lock()
 	defer m.cacheLock.Unlock()
 	m.cache.Add(profile.selector, profile)
-
-	// remove profile from kernel space
-	m.unloadProfile(profile)
 }
 
 // OnNewProfileEvent handles the arrival of a new profile (or the new version of a profile) from a provider
@@ -291,7 +342,10 @@ func (m *SecurityProfileManager) OnNewProfileEvent(selector cgroupModel.Workload
 	}
 
 	// load the profile in kernel space
-	m.loadProfile(profile)
+	if err := m.loadProfile(profile); err != nil {
+		seclog.Errorf("couldn't load security profile %s in kernel space: %v", profile.selector, err)
+		return
+	}
 
 	// link all workloads
 	for _, workload := range profile.Instances {
@@ -343,26 +397,56 @@ func (m *SecurityProfileManager) SendStats() error {
 
 // prepareProfile (thread unsafe) generates eBPF programs and cookies to prepare for kernel space insertion
 func (m *SecurityProfileManager) prepareProfile(profile *SecurityProfile) {
-	// TODO: generate eBPF programs and prepare the workload to be inserted in kernel space
+	// generate cookies for the profile
+	profile.generateCookies()
+
+	// TODO: generate eBPF programs and make sure the profile is ready to be inserted in kernel space
 }
 
 // loadProfile (thread unsafe) loads a Security Profile in kernel space
-func (m *SecurityProfileManager) loadProfile(profile *SecurityProfile) {
-	// TODO: load generated programs and push kernel space filters
+func (m *SecurityProfileManager) loadProfile(profile *SecurityProfile) error {
 	profile.loaded = true
+
+	// push kernel space filters
+	if err := m.securityProfileSyscallsMap.Put(profile.profileCookie, profile.generateSyscallsFilters()); err != nil {
+		return fmt.Errorf("couldn't push syscalls filter: %w", err)
+	}
+
+	// TODO: load generated programs
+	seclog.Debugf("security profile %s (version:%s status:%s) loaded in kernel space", profile.Metadata.Name, profile.Version, profile.Status.String())
+	return nil
 }
 
 // unloadProfile (thread unsafe) unloads a Security Profile from kernel space
 func (m *SecurityProfileManager) unloadProfile(profile *SecurityProfile) {
-	// TODO: delete all kernel space programs and map entries for this profile
+	profile.loaded = false
+
+	// remove kernel space filters
+	if err := m.securityProfileSyscallsMap.Delete(profile.profileCookie); err != nil {
+		seclog.Errorf("coudln't remove syscalls filter: %v", err)
+	}
+
+	// TODO: delete all kernel space programs
+	seclog.Debugf("security profile %s (version:%s status:%s) unloaded from kernel space", profile.Metadata.Name, profile.Version, profile.Status.String())
 }
 
 // linkProfile (thread unsafe) updates the kernel space mapping between a workload and its profile
 func (m *SecurityProfileManager) linkProfile(profile *SecurityProfile, workload *cgroupModel.CacheEntry) {
-	// TODO: link profile <-> container ID in kernel space
+	if err := m.securityProfileMap.Put([]byte(workload.ID), profile.generateKernelSecurityProfileDefinition()); err != nil {
+		seclog.Errorf("couldn't link workload %s (selector: %s) with profile %s: %v", workload.ID, workload.WorkloadSelector.String(), profile.Metadata.Name, err)
+		return
+	}
+	seclog.Infof("workload %s (selector: %s) successfully linked to profile %s", workload.ID, workload.WorkloadSelector.String(), profile.Metadata.Name)
 }
 
 // unlinkProfile (thread unsafe) updates the kernel space mapping between a workload and its profile
 func (m *SecurityProfileManager) unlinkProfile(profile *SecurityProfile, workload *cgroupModel.CacheEntry) {
-	// TODO: unlink profile <-> container ID in kernel space
+	if !profile.loaded {
+		return
+	}
+
+	if err := m.securityProfileMap.Delete([]byte(workload.ID)); err != nil {
+		seclog.Errorf("couldn't unlink workload %s with profile %s: %v", workload.WorkloadSelector.String(), profile.Metadata.Name, err)
+	}
+	seclog.Infof("workload %s (selector: %s) successfully unlinked to profile %s", workload.ID, workload.WorkloadSelector.String(), profile.Metadata.Name)
 }

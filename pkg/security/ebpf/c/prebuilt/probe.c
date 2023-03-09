@@ -63,6 +63,7 @@
 #include "mmap.h"
 #include "mprotect.h"
 #include "raw_syscalls.h"
+#include "security_profile.h"
 
 #ifndef DO_NOT_USE_TC
 #include "flow.h"

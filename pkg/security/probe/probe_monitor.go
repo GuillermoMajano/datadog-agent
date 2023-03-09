@@ -62,7 +62,7 @@ func NewMonitor(p *Probe) (*Monitor, error) {
 	}
 
 	if p.Config.SecurityProfileEnabled {
-		m.securityProfileManager, err = profile.NewSecurityProfileManager(p.Config, p.StatsdClient, p.resolvers.CGroupResolver)
+		m.securityProfileManager, err = profile.NewSecurityProfileManager(p.Config, p.StatsdClient, p.resolvers.CGroupResolver, p.Manager)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create the security profile manager: %w", err)
 		}

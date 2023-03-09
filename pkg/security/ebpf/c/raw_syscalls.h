@@ -24,8 +24,14 @@ struct syscall_monitor_event_t {
     struct span_context_t span;
     struct container_context_t container;
 
-    struct syscall_monitor_entry_t syscalls;
+    union {
+        struct syscall_monitor_entry_t syscalls;
+        long syscall_id;
+    } syscall_data;
 };
+
+// defined in security_profile.h
+__attribute__((always_inline)) void evaluate_security_profile_syscalls(void *args, struct syscall_monitor_event_t *event, long syscall_id);
 
 struct bpf_map_def SEC("maps/syscall_monitor") syscall_monitor = {
     .type = BPF_MAP_TYPE_LRU_HASH,
@@ -75,11 +81,15 @@ int sys_enter(struct _tracepoint_raw_syscalls_sys_enter *args) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u32 pid = pid_tgid >> 32;
 
-    // check if we are monitoring the syscalls of the current process
     u64 now = bpf_ktime_get_ns();
     struct syscall_monitor_event_t event = {};
     struct proc_cache_t *proc_cache_entry = fill_process_context(&event.process);
     fill_container_context(proc_cache_entry, &event.container);
+
+    // check if this workload has a security profile
+    evaluate_security_profile_syscalls(args, &event, args->id);
+
+    // check if we are monitoring the syscalls of the current process
     char comm[TASK_COMM_LEN];
     bpf_get_current_comm(&comm, TASK_COMM_LEN);
     if (!should_trace_new_process(args, now, pid, event.container.container_id, comm)) {
@@ -136,7 +146,7 @@ shoud_send_event:
     if (should_send) {
 
         // send an event now
-        event.syscalls = *entry;
+        event.syscall_data.syscalls = *entry;
         event.event.flags = EVENT_FLAGS_ACTIVITY_DUMP_SAMPLE; // syscall events are used only by activity dumps
 
         // regardless if we successfully send the event, update the "last_sent" field to avoid spamming the perf map
@@ -144,7 +154,7 @@ shoud_send_event:
         entry->dirty = 0;
 
         // remove last_sent and dirty from the event size, we don't care about these fields
-        send_event_with_size_ptr(args, EVENT_SYSCALLS, &event, offsetof(struct syscall_monitor_event_t, syscalls) + SYSCALL_ENCODING_TABLE_SIZE);
+        send_event_with_size_ptr(args, EVENT_SYSCALLS, &event, offsetof(struct syscall_monitor_event_t, syscall_data) + SYSCALL_ENCODING_TABLE_SIZE);
     }
 
     key.syscall_key = EXECVE_SYSCALL_KEY;

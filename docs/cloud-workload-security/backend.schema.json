@@ -2,6 +2,20 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/DataDog/datadog-agent/pkg/security/serializers/event",
   "$defs": {
+    "AnomalyDetectionSyscallEvent": {
+      "properties": {
+        "syscall": {
+          "type": "string",
+          "description": "Syscall is the name of the syscall that triggered the anomaly detection"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "syscall"
+      ],
+      "description": "AnomalyDetectionSyscallEventSerializer serializes an anomaly detection for a syscall event"
+    },
     "BPFEvent": {
       "properties": {
         "cmd": {
@@ -527,6 +541,49 @@
         "req_protection"
       ],
       "description": "MProtectEventSerializer serializes a mmap event to JSON"
+    },
+    "MatchedRule": {
+      "properties": {
+        "RuleID": {
+          "type": "string",
+          "description": "RuleID is the rule ID of the rule that matched the event"
+        },
+        "RuleVersion": {
+          "type": "string",
+          "description": "RuleVersion is the version of the rule that matched the event"
+        },
+        "PolicyName": {
+          "type": "string",
+          "description": "PolicyName is the name of the policy of the rule that matched the event"
+        },
+        "PolicyVersion": {
+          "type": "string",
+          "description": "PolicyVersion is the version of the policy of the rule that matched the event"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "RuleID",
+        "RuleVersion",
+        "PolicyName",
+        "PolicyVersion"
+      ],
+      "description": "MatchedRuleSerializer serializes a matched rule"
+    },
+    "MatchedRulesContext": {
+      "properties": {
+        "matched_rules": {
+          "items": {
+            "$ref": "#/$defs/MatchedRule"
+          },
+          "type": "array",
+          "description": "MatchedRules is the list of rules that matched the event"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "MatchedRulesContextSerializer serializes the matched rules"
     },
     "ModuleEvent": {
       "properties": {
@@ -1062,6 +1119,38 @@
       "type": "object",
       "description": "SELinuxEventSerializer serializes a SELinux context to JSON"
     },
+    "SecurityProfileContext": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is the name of the security profile"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status is the status in which"
+        },
+        "version": {
+          "type": "string",
+          "description": "Version is the version of the profile in use"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Tags is the list of tags associated to this profile"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "status",
+        "version",
+        "tags"
+      ],
+      "description": "SecurityProfileContextSerializer serializes the security profile context in an event"
+    },
     "SignalEvent": {
       "properties": {
         "type": {
@@ -1166,6 +1255,9 @@
     "mount": {
       "$ref": "#/$defs/MountEvent"
     },
+    "anomaly_detection_syscall": {
+      "$ref": "#/$defs/AnomalyDetectionSyscallEvent"
+    },
     "usr": {
       "$ref": "#/$defs/UserContext"
     },
@@ -1177,6 +1269,12 @@
     },
     "container": {
       "$ref": "#/$defs/ContainerContext"
+    },
+    "matched_rules": {
+      "$ref": "#/$defs/MatchedRulesContext"
+    },
+    "security_profile": {
+      "$ref": "#/$defs/SecurityProfileContext"
     },
     "date": {
       "type": "string",

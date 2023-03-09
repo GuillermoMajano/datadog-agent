@@ -164,6 +164,8 @@ type Config struct {
 	SecurityProfileWatchDir bool
 	// SecurityProfileCacheSize defines the count of Security Profiles held in cache
 	SecurityProfileCacheSize int
+	// SecurityProfileMaxCount defines the maximum number of Security Profiles that may be evaluated concurrently
+	SecurityProfileMaxCount int
 
 	// RuntimeMonitor defines if the Go runtime and system monitor should be enabled
 	RuntimeMonitor bool
@@ -313,6 +315,7 @@ func NewConfig(cfg *config.Config) (*Config, error) {
 		SecurityProfileDir:       coreconfig.SystemProbe.GetString("runtime_security_config.security_profile.dir"),
 		SecurityProfileWatchDir:  coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.watch_dir"),
 		SecurityProfileCacheSize: coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.cache_size"),
+		SecurityProfileMaxCount:  coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.max_count"),
 	}
 
 	c.NetworkProcessEventMonitoringEnabled = c.NetworkProcessEventMonitoringEnabled && cfg.ModuleIsEnabled(config.NetworkTracerModule)
