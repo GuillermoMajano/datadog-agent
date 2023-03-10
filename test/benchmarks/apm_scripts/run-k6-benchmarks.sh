@@ -11,6 +11,9 @@ export K6_STATSD_ENABLE_TAGS=true
 export K6_STATSD_ADDR=$STATSD_URL
 mkdir runner
 export | grep PATH
+# fixup 
+apt-get install psmisc -y
+
 # store the test to use between runs between different branches
 cp ./test/benchmarks/apm_scripts/k6_basic.js ./runner/
 
