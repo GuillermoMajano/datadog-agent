@@ -35,12 +35,8 @@ func getEnabledChecks(scfg *sysconfig.Config) []string {
 }
 
 func setFeatures(t *testing.T, features ...config.Feature) {
-	t.Cleanup(func() { config.SetDetectedFeatures(nil) })
-	featuresToEnable := make(config.FeatureMap, len(features))
-	for _, feature := range features {
-		featuresToEnable[feature] = struct{}{}
-	}
-	config.SetDetectedFeatures(featuresToEnable)
+	t.Cleanup(config.ClearFeatures)
+	config.SetFeatures(features...)
 }
 
 func TestProcessDiscovery(t *testing.T) {

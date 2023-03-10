@@ -14,7 +14,6 @@ import (
 	model "github.com/DataDog/agent-payload/v5/process"
 	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/comp/process/runner"
-	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/process/checks"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -22,10 +21,6 @@ import (
 var testHostInfo = &checks.HostInfo{SystemInfo: &model.SystemInfo{}}
 
 func TestBundleDependencies(t *testing.T) {
-	// Don't enable any features, as the container check won't work in all environments
-	config.SetDetectedFeatures(config.FeatureMap{})
-	t.Cleanup(func() { config.SetDetectedFeatures(nil) })
-
 	require.NoError(t, fx.ValidateApp(
 		fx.Supply(
 			fx.Annotate(t, fx.As(new(testing.TB))),
@@ -42,10 +37,6 @@ func TestBundleDependencies(t *testing.T) {
 }
 
 func TestBundleOneShot(t *testing.T) {
-	// Don't enable any features, we haven't set up a container provider so the container check will crash
-	config.SetDetectedFeatures(config.FeatureMap{})
-	t.Cleanup(func() { config.SetDetectedFeatures(nil) })
-
 	runCmd := func(r runner.Component) {
 		checks := r.GetProvidedChecks()
 		require.Len(t, checks, 7)
