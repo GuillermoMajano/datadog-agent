@@ -6,15 +6,14 @@ basic_k6_benchmark:
   rules:
     !reference [.on_trace_agent_changes_or_manual]
   interruptible: true
-  # tags: ["team:apm-k8s-tweaked-metal-datadog-agent,specific:true"]
-  tags: ["arch:amd64"]
+  tags: ["team:apm-k8s-tweaked-metal-datadog-agent,specific:true"]
   script:
     - ./test/benchmarks/apm_scripts/capture-hardware-software-info.sh
     - ./test/benchmarks/apm_scripts/fetch_payloads.sh
     - ./test/benchmarks/apm_scripts/run-k6-benchmarks.sh
     # - ./test/benchmarks/apm_scripts/upload-results-to-s3.sh #commented out until we have merged our permissions changes
-    - ./test/benchmarks/apm_scripts/analyze-results.sh
-    - ./test/benchmarks/apm_scripts/post-pr-comment.sh
+    # - ./test/benchmarks/apm_scripts/analyze-results.sh
+    # - ./test/benchmarks/apm_scripts/post-pr-comment.sh
   artifacts:
     name: "reports"
     paths:

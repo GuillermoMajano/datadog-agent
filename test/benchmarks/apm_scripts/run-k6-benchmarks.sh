@@ -9,6 +9,10 @@ export DD_APM_MAX_CPU_PERCENT=200
 export DD_APM_REMOTE_TAGGER=false
 export K6_STATSD_ENABLE_TAGS=true
 export K6_STATSD_ADDR=$STATSD_URL
+mkdir runner
+export | grep PATH
+# store the test to use between runs between different branches
+cp ./test/benchmarks/apm_scripts/k6_basic.js ./runner/
 
 go run ./cmd/trace-agent &
 RUN_ID=k6-benchmark-dd-trace-agent
@@ -18,7 +22,7 @@ k6 run \
     --tag ci_job_id=$CI_JOB_ID \
     --out statsd \
     --out json="reports/$RUN_ID.json.txt" \
-    ./test/benchmarks/apm_scripts/k6_basic.js
+    ./runner/k6_basic.js
 
 killall -9 trace-agent
 
@@ -31,7 +35,7 @@ k6 run \
     --tag ci_job_id=$CI_JOB_ID \
     --out statsd \
     --out json="reports/$RUN_ID.json.txt" \
-    ./test/benchmarks/apm_scripts/k6_basic.js
+    ./runner/k6_basic.js
 
 killall -9 trace-agent
 
