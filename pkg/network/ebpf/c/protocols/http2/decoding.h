@@ -3,7 +3,6 @@
 
 #include "bpf_builtins.h"
 #include "bpf_helpers.h"
-#include "bpf_telemetry.h"
 #include "map-defs.h"
 #include "ip.h"
 
@@ -28,7 +27,7 @@ static __always_inline http2_stream_t *http2_fetch_stream(http2_stream_key_t *ht
         return NULL;
     }
     bpf_memset(http2_stream_ptr, 0, sizeof(http2_stream_t));
-    bpf_map_update_with_telemetry(http2_in_flight, http2_stream_key, http2_stream_ptr, BPF_NOEXIST);
+    bpf_map_update_elem(&http2_in_flight, http2_stream_key, http2_stream_ptr, BPF_NOEXIST);
     return bpf_map_lookup_elem(&http2_in_flight, http2_stream_key);
 }
 
@@ -252,7 +251,7 @@ static __always_inline void read_into_buffer_skb_http2(char *buffer, struct __sk
     for (; i < (HTTP2_BUFFER_SIZE / BLK_SIZE); i++) {
         if (offset + BLK_SIZE - 1 >= len) { break; }
 
-        bpf_skb_load_bytes_with_telemetry(skb, offset, &buffer[i * BLK_SIZE], BLK_SIZE);
+        bpf_skb_load_bytes(skb, offset, &buffer[i * BLK_SIZE], BLK_SIZE);
         offset += BLK_SIZE;
     }
 
@@ -267,35 +266,35 @@ static __always_inline void read_into_buffer_skb_http2(char *buffer, struct __sk
     if (i * BLK_SIZE >= HTTP2_BUFFER_SIZE) {
         return;
     } else if (offset + 14 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 15);
+        bpf_skb_load_bytes(skb, offset, buf, 15);
     } else if (offset + 13 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 14);
+        bpf_skb_load_bytes(skb, offset, buf, 14);
     } else if (offset + 12 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 13);
+        bpf_skb_load_bytes(skb, offset, buf, 13);
     } else if (offset + 11 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 12);
+        bpf_skb_load_bytes(skb, offset, buf, 12);
     } else if (offset + 10 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 11);
+        bpf_skb_load_bytes(skb, offset, buf, 11);
     } else if (offset + 9 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 10);
+        bpf_skb_load_bytes(skb, offset, buf, 10);
     } else if (offset + 8 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 9);
+        bpf_skb_load_bytes(skb, offset, buf, 9);
     } else if (offset + 7 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 8);
+        bpf_skb_load_bytes(skb, offset, buf, 8);
     } else if (offset + 6 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 7);
+        bpf_skb_load_bytes(skb, offset, buf, 7);
     } else if (offset + 5 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 6);
+        bpf_skb_load_bytes(skb, offset, buf, 6);
     } else if (offset + 4 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 5);
+        bpf_skb_load_bytes(skb, offset, buf, 5);
     } else if (offset + 3 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 4);
+        bpf_skb_load_bytes(skb, offset, buf, 4);
     } else if (offset + 2 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 3);
+        bpf_skb_load_bytes(skb, offset, buf, 3);
     } else if (offset + 1 < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 2);
+        bpf_skb_load_bytes(skb, offset, buf, 2);
     } else if (offset < len) {
-        bpf_skb_load_bytes_with_telemetry(skb, offset, buf, 1);
+        bpf_skb_load_bytes(skb, offset, buf, 1);
     }
 }
 
@@ -422,7 +421,7 @@ static __always_inline __u32 http2_entrypoint(struct __sk_buff *skb, dispatcher_
     bpf_memset((char*)frame_buf, 0, sizeof(frame_buf));
 
     // read frame.
-    bpf_skb_load_bytes_with_telemetry(skb, offset, frame_buf, HTTP2_FRAME_HEADER_SIZE);
+    bpf_skb_load_bytes(skb, offset, frame_buf, HTTP2_FRAME_HEADER_SIZE);
     offset += HTTP2_FRAME_HEADER_SIZE;
 
     struct http2_frame current_frame = {};
@@ -474,7 +473,7 @@ int socket__http2_filter(struct __sk_buff *skb) {
     http2_tail_call_state_t *tail_call_state = bpf_map_lookup_elem(&http2_iterations, &iterations_key);
     if (tail_call_state == NULL) {
         http2_tail_call_state_t iteration_value = {};
-        bpf_map_update_with_telemetry(http2_iterations, &iterations_key, &iteration_value, BPF_NOEXIST);
+        bpf_map_update_elem(&http2_iterations, &iterations_key, &iteration_value, BPF_NOEXIST);
         tail_call_state = bpf_map_lookup_elem(&http2_iterations, &iterations_key);
         if (tail_call_state == NULL) {
             return 0;
