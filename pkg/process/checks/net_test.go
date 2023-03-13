@@ -54,7 +54,7 @@ func TestDNSNameEncoding(t *testing.T) {
 		"1.1.2.4": {Names: []string{"host4.domain.com"}},
 		"1.1.2.5": {Names: nil},
 	}
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 	maxConnsPerMessage := 10
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, p, dns, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, nil, nil, nil, nil, ex)
 	assert.Equal(t, len(chunks), 1)
@@ -120,7 +120,7 @@ func TestNetworkConnectionBatching(t *testing.T) {
 		rctm := map[string]*model.RuntimeCompilationTelemetry{}
 		khfr := model.KernelHeaderFetchResult_FetchNotAttempted
 		coretm := map[string]model.COREResult{}
-		ex := parser.NewServiceExtractor()
+		ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 		chunks := batchConnections(&HostInfo{}, tc.maxSize, 0, tc.cur, map[string]*model.DNSEntry{}, "nid", ctm, rctm, khfr, coretm, nil, nil, nil, nil, ex)
 
 		assert.Len(t, chunks, tc.expectedChunks, "len %d", i)
@@ -160,7 +160,7 @@ func TestNetworkConnectionBatchingWithDNS(t *testing.T) {
 	}
 
 	maxConnsPerMessage := 1
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, p, dns, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, nil, nil, nil, nil, ex)
 
 	assert.Len(t, chunks, 4)
@@ -200,7 +200,7 @@ func TestBatchSimilarConnectionsTogether(t *testing.T) {
 	p[5].Raddr.Ip = "1.3.4.5"
 
 	maxConnsPerMessage := 2
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, p, map[string]*model.DNSEntry{}, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, nil, nil, nil, nil, ex)
 
 	assert.Len(t, chunks, 3)
@@ -284,7 +284,7 @@ func TestNetworkConnectionBatchingWithDomainsByQueryType(t *testing.T) {
 	dnsmap := map[string]*model.DNSEntry{}
 
 	maxConnsPerMessage := 1
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, conns, dnsmap, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, domains, nil, nil, nil, ex)
 
 	assert.Len(t, chunks, 4)
@@ -402,7 +402,7 @@ func TestNetworkConnectionBatchingWithDomains(t *testing.T) {
 	dnsmap := map[string]*model.DNSEntry{}
 
 	maxConnsPerMessage := 1
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, conns, dnsmap, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, domains, nil, nil, nil, ex)
 
 	assert.Len(t, chunks, 4)
@@ -511,7 +511,7 @@ func TestNetworkConnectionBatchingWithRoutes(t *testing.T) {
 	conns[7].RouteIdx = 2
 
 	maxConnsPerMessage := 4
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, conns, nil, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, nil, routes, nil, nil, ex)
 
 	assert.Len(t, chunks, 2)
@@ -579,7 +579,7 @@ func TestNetworkConnectionTags(t *testing.T) {
 	foundTags := []fakeConn{}
 
 	maxConnsPerMessage := 4
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(ddconfig.Mock(t))
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, conns, nil, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, nil, nil, tags, nil, ex)
 
 	assert.Len(t, chunks, 2)
@@ -616,7 +616,7 @@ func TestNetworkConnectionTagsWithService(t *testing.T) {
 	mockConfig.Set("service_monitoring_config.process_service_inference.enabled", true)
 
 	maxConnsPerMessage := 1
-	ex := parser.NewServiceExtractor()
+	ex := parser.NewServiceExtractor(mockConfig)
 	ex.Extract(procsByPid)
 
 	chunks := batchConnections(&HostInfo{}, maxConnsPerMessage, 0, conns, nil, "nid", nil, nil, model.KernelHeaderFetchResult_FetchNotAttempted, nil, nil, nil, tags, nil, ex)

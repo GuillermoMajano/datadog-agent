@@ -130,7 +130,7 @@ func TestExtractServiceMetadata(t *testing.T) {
 			}
 			procsByPid := map[int32]*procutil.Process{proc.Pid: &proc}
 
-			se := NewServiceExtractor()
+			se := NewServiceExtractor(mockConfig)
 			se.Extract(procsByPid)
 			assert.Equal(t, tt.expectedServiceTag, se.GetServiceContext(proc.Pid))
 		})
@@ -146,7 +146,7 @@ func TestExtractServiceMetadataDisabled(t *testing.T) {
 		Cmdline: []string{"/bin/bash"},
 	}
 	procsByPid := map[int32]*procutil.Process{proc.Pid: &proc}
-	se := NewServiceExtractor()
+	se := NewServiceExtractor(mockConfig)
 	se.Extract(procsByPid)
 	assert.Empty(t, se.GetServiceContext(proc.Pid))
 }
