@@ -9,7 +9,7 @@ set -e
 
 echo -e "\033[33m
  install_script.sh is deprecated. Please use one of
- 
+
  * https://s3.amazonaws.com/dd-agent/scripts/install_script_agent6.sh to install Agent 6
  * https://s3.amazonaws.com/dd-agent/scripts/install_script_agent7.sh to install Agent 7
 \033[0m"
@@ -701,10 +701,10 @@ if [ "$upgrade" ] && [ "$agent_flavor" != "datadog-dogstatsd" ]; then
     $sudo_cmd $icmd || printf "\033[31mAutomatic import failed, you can still try to manually run: $icmd\n\033[0m\n"
     # fix file owner and permissions since the script moves around some files
     $sudo_cmd chown -R root:dd-agent "$etcdir"
-    $sudo_cmd find ${etcdir} -type d -not -path ${etcdir}/conf.d -exec chmod 2750 {} \;
-    $sudo_cmd find ${etcdir} -type f -not -path ${etcdir}/conf.d -exec chmod 640 {} \;
-    $sudo_cmd chmod g+w ${etcdir}
-    $sudo_cmd chmod +t ${etcdir}
+    $sudo_cmd find "${etcdir}" -type d -not -path ${etcdir}/conf.d -exec chmod 2750 {} \;
+    $sudo_cmd find "${etcdir}" -type f -not -path ${etcdir}/conf.d -exec chmod 640 {} \;
+    $sudo_cmd chmod g+w "${etcdir}"
+    $sudo_cmd chmod +t "${etcdir}"
   else
     printf "\033[31mYou don't have a datadog.conf file to convert.\n\033[0m\n"
   fi
