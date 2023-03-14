@@ -15,7 +15,7 @@
 
 USM_EVENTS_INIT(http2, http2_stream_t, HTTP2_BATCH_SIZE);
 
-// http2_fetch_stream returns the current http2 in flight stream.
+// http2_fetch_stream returns the current http2 in flight stream
 static __always_inline http2_stream_t *http2_fetch_stream(http2_stream_key_t *http2_stream_key) {
     http2_stream_t *http2_stream_ptr = bpf_map_lookup_elem(&http2_in_flight, http2_stream_key);
     if (http2_stream_ptr != NULL) {
