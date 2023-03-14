@@ -9,7 +9,7 @@ basic_k6_benchmark:
   tags: ["team:apm-k8s-tweaked-metal-datadog-agent,specific:true"]
   script:
     - ./test/benchmarks/apm_scripts/capture-hardware-software-info.sh
-    - PWD=$(pwd) for file in $PWD/test/benchmarks/apm_scripts/k6/*.sh; do $file; done 
+    - for file in $(pwd)/test/benchmarks/apm_scripts/k6/*.sh; do echo $file ; done 
     # - ./test/benchmarks/apm_scripts/upload-results-to-s3.sh #commented out until we have merged our permissions changes
     # - ./test/benchmarks/apm_scripts/analyze-results.sh
     # - ./test/benchmarks/apm_scripts/post-pr-comment.sh
