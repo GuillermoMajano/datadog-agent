@@ -6,6 +6,11 @@ mkdir -p k6 $WORKDIR/k6
 cp $SCRIPT_DIR/../* $WORKDIR/
 cp $SCRIPT_DIR/* $WORKDIR/k6
 
+fetch_data_layer_from_registry.py registry.ddbuild.io ci/relenv-microbenchmarking-platform/ben-runner latest benrunner.tar.gz
+tar xf benrunner.tar.gz 
+
+./ben-runner -l debug execute -f ./test/benchmarks/apm_scripts/latency.yaml
+exit 1
 # fetch and unpack payloads
 fetch_data_layer_from_registry.py registry.ddbuild.io apm-reliability-environment/trace-agent-payloads latest payloads.tar.gz
 PAYLOADS_DIR="$WORKDIR/k6/payloads"
