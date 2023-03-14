@@ -2,7 +2,7 @@ setup:
   steps:
   - run: |
       echo test
-  - unpack_oci_artifact: ghcr.io/pawelchcki/ben-runner/example/docker_layer:latest
-    dest: oci_fetch/example_path
-    workdir: /tmp/target/
+  - unpack_oci_artifact: registry.ddbuild.io/ci/relenv-microbenchmarking-platform/ben-runner:latest
+    dest: fetchself
+    workdir: /tmp/
 configurations: []
