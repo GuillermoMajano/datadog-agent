@@ -36,6 +36,8 @@ const (
 
 	// TCPSendMsg traces the tcp_sendmsg() system call
 	TCPSendMsg ProbeFuncName = "kprobe__tcp_sendmsg"
+	// TCPSendPage traces the tcp_sendpage() kernel function
+	TCPSendPage ProbeFuncName = "kprobe__tcp_sendpage"
 
 	// TCPSendMsgPre410 traces the tcp_sendmsg() system call on kernels prior to 4.1.0. This is created because
 	// we need to load a different kprobe implementation
@@ -45,6 +47,8 @@ const (
 	// XXX: This is only used for telemetry for now to count the number of errors returned
 	// by the tcp_sendmsg func (so we can have a # of tcp sent bytes we miscounted)
 	TCPSendMsgReturn ProbeFuncName = "kretprobe__tcp_sendmsg"
+	// TCPSendPageReturn traces the return value of tcp_sendpage()
+	TCPSendPageReturn ProbeFuncName = "kretprobe__tcp_sendpage"
 
 	// TCPGetSockOpt traces the tcp_getsockopt() kernel function
 	// This probe is used for offset guessing only
@@ -176,6 +180,7 @@ const (
 	SockByPidFDMap                    BPFMapName = "sock_by_pid_fd"
 	PidFDBySockMap                    BPFMapName = "pid_fd_by_sock"
 	TcpSendMsgArgsMap                 BPFMapName = "tcp_sendmsg_args"
+	TcpSendPageArgsMap                BPFMapName = "tcp_sendpage_args"
 	IpMakeSkbArgsMap                  BPFMapName = "ip_make_skb_args"
 	MapErrTelemetryMap                BPFMapName = "map_err_telemetry_map"
 	HelperErrTelemetryMap             BPFMapName = "helper_err_telemetry_map"
