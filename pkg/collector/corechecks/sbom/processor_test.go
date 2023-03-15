@@ -3,6 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2022-present Datadog, Inc.
 
+//go:build trivy
+// +build trivy
+
 package sbom
 
 import (
@@ -400,7 +403,7 @@ func TestProcessEvents(t *testing.T) {
 
 			// Define a max size of 1 for the queue. With a size > 1, it's difficult to
 			// control the number of events sent on each call.
-			p := newProcessor(fakeworkloadmeta, sender, 1, 50*time.Millisecond)
+			p, _ := newProcessor(fakeworkloadmeta, sender, 1, 50*time.Millisecond)
 
 			for _, ev := range test.inputEvents {
 				switch ev.Type {

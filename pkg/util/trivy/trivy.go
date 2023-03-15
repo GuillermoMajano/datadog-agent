@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/sbom"
 	containerdUtil "github.com/DataDog/datadog-agent/pkg/util/containerd"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
@@ -138,7 +139,7 @@ func DefaultDisabledHandlers() []ftypes.HandlerType {
 	return []ftypes.HandlerType{ftypes.UnpackagedPostHandler}
 }
 
-func NewCollector(collectorConfig CollectorConfig) (Collector, error) {
+func NewCollector(collectorConfig CollectorConfig) (sbom.Collector, error) {
 	dbConfig := db.Config{}
 	fanalCache, err := collectorConfig.CacheProvider()
 	if err != nil {
@@ -166,7 +167,7 @@ func (c *collector) Close() error {
 	return c.cache.Close()
 }
 
-func (c *collector) ScanContainerdImage(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image) (Report, error) {
+func (c *collector) ScanContainerdImage(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image) (sbom.Report, error) {
 	client, err := c.config.ContainerdAccessor()
 	if err != nil {
 		return nil, fmt.Errorf("unable to access containerd client, err: %w", err)
@@ -193,7 +194,7 @@ func (c *collector) ScanContainerdImage(ctx context.Context, imgMeta *workloadme
 	return bom, nil
 }
 
-func (c *collector) ScanContainerdImageFromFilesystem(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image) (Report, error) {
+func (c *collector) ScanContainerdImageFromFilesystem(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image) (sbom.Report, error) {
 	client, err := c.config.ContainerdAccessor()
 	if err != nil {
 		return nil, fmt.Errorf("unable to access containerd client, err: %w", err)
@@ -231,7 +232,7 @@ func (c *collector) ScanContainerdImageFromFilesystem(ctx context.Context, imgMe
 	return c.ScanFilesystem(ctx, imagePath)
 }
 
-func (c *collector) ScanFilesystem(ctx context.Context, path string) (Report, error) {
+func (c *collector) ScanFilesystem(ctx context.Context, path string) (sbom.Report, error) {
 	fsArtifact, err := local2.NewArtifact(path, c.cache, c.config.ArtifactOption)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create artifact from fs, err: %w", err)
@@ -245,7 +246,7 @@ func (c *collector) ScanFilesystem(ctx context.Context, path string) (Report, er
 	return bom, nil
 }
 
-func (c *collector) scan(ctx context.Context, artifact artifact.Artifact) (Report, error) {
+func (c *collector) scan(ctx context.Context, artifact artifact.Artifact) (sbom.Report, error) {
 	s := scanner.NewScanner(local.NewScanner(c.applier, c.detector, c.vulnClient), artifact)
 	trivyReport, err := s.ScanArtifact(ctx, types.ScanOptions{
 		VulnType:            []string{},

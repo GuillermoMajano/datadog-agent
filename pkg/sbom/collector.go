@@ -3,15 +3,15 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package trivy
+package sbom
 
 import (
 	"context"
 
 	cyclonedxgo "github.com/CycloneDX/cyclonedx-go"
-	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
-
 	"github.com/containerd/containerd"
+
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 // Report interface

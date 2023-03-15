@@ -3,25 +3,30 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2022-present Datadog, Inc.
 
+//go:build trivy
+// +build trivy
+
 package sbom
 
 import (
-	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
+	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/sbom"
+	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	queue "github.com/DataDog/datadog-agent/pkg/util/aggregatingqueue"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/trivy"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
-	"github.com/DataDog/datadog-agent/pkg/workloadmeta/telemetry"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/DataDog/agent-payload/v5/sbom"
 	model "github.com/DataDog/agent-payload/v5/sbom"
+	protobuf "github.com/DataDog/agent-payload/v5/sbom"
 )
 
 var /* const */ (
@@ -33,13 +38,24 @@ type processor struct {
 	workloadmetaStore workloadmeta.Store
 	imageRepoDigests  map[string]string              // Map where keys are image repo digest and values are image ID
 	imageUsers        map[string]map[string]struct{} // Map where keys are image repo digest and values are set of container IDs
-	trivyClient       trivy.Collector
+	trivyClient       sbom.Scanner
+	hostname          string
 }
 
-func newProcessor(workloadmetaStore workloadmeta.Store, sender aggregator.Sender, maxNbItem int, maxRetentionTime time.Duration) *processor {
+func newProcessor(workloadmetaStore workloadmeta.Store, sender aggregator.Sender, maxNbItem int, maxRetentionTime time.Duration) (*processor, error) {
+	trivyClient, err := trivy.GetScanner(config.Datadog)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing trivy client: %w", err)
+	}
+
+	hostname, err := utils.GetHostname()
+	if err != nil {
+		return nil, err
+	}
+
 	return &processor{
 		queue: queue.NewQueue(maxNbItem, maxRetentionTime, func(entities []*model.SBOMEntity) {
-			sender.SBOM([]sbom.SBOMPayload{
+			sender.SBOM([]protobuf.SBOMPayload{
 				{
 					Version:  1,
 					Source:   &sourceAgent,
@@ -51,7 +67,8 @@ func newProcessor(workloadmetaStore workloadmeta.Store, sender aggregator.Sender
 		imageRepoDigests:  make(map[string]string),
 		imageUsers:        make(map[string]map[string]struct{}),
 		trivyClient:       trivyClient,
-	}
+		hostname:          hostname,
+	}, nil
 }
 
 func (p *processor) processContainerImagesEvents(evBundle workloadmeta.EventBundle) {
@@ -65,7 +82,7 @@ func (p *processor) processContainerImagesEvents(evBundle workloadmeta.EventBund
 			switch event.Type {
 			case workloadmeta.EventTypeSet:
 				p.registerImage(event.Entity.(*workloadmeta.ContainerImageMetadata))
-				p.processSBOM(event.Entity.(*workloadmeta.ContainerImageMetadata))
+				p.processImageSBOM(event.Entity.(*workloadmeta.ContainerImageMetadata))
 			case workloadmeta.EventTypeUnset:
 				p.unregisterImage(event.Entity.(*workloadmeta.ContainerImageMetadata))
 				// Let the SBOM expire on back-end side
@@ -118,7 +135,7 @@ func (p *processor) registerContainer(ctr *workloadmeta.Container) {
 		if img, err := p.workloadmetaStore.GetImage(imgID); err != nil {
 			log.Infof("Couldn’t find image %s in workloadmeta whereas it’s used by container %s: %v", imgID, ctrID, err)
 		} else {
-			p.processSBOM(img)
+			p.processImageSBOM(img)
 		}
 	}
 }
@@ -140,32 +157,33 @@ func (p *processor) processContainerImagesRefresh(allImages []*workloadmeta.Cont
 	}
 }
 
-func (p *processor) processHostRefresh() error {
-	var err error
+func (p *processor) processHostRefresh() {
+	log.Debugf("Triggering host SBOM refresh")
 
-	cycloneDX, err := p.trivyClient.ScanFilesystem(context.Background(), "/")
-	if err != nil {
-		return err
+	if err := p.trivyClient.ScanFilesystem("/", func(report sbom.Report, startedAt time.Time, scanDuration time.Duration) {
+		log.Debugf("Successfully generated SBOM for host: %v, %v", startedAt, scanDuration)
+
+		bom, err := report.ToCycloneDX()
+		if err != nil {
+			log.Errorf("Failed to extract SBOM from report: %s", err)
+			return
+		}
+
+		p.queue <- &model.SBOMEntity{
+			Type:               model.SBOMSourceType_HOST_FILE_SYSTEM,
+			Id:                 p.hostname,
+			GeneratedAt:        timestamppb.New(startedAt),
+			InUse:              true,
+			GenerationDuration: convertDuration(scanDuration),
+			Sbom: &protobuf.SBOMEntity_Cyclonedx{
+				Cyclonedx: convertBOM(bom),
+			},
+		}
+	}, func(err error) {
+		log.Errorf("Failed to generate SBOM for host: %s", err)
+	}, 0, 0); err != nil {
+		log.Errorf("Failed to generate SBOM for host: %s", err)
 	}
-
-	tStartScan := time.Now()
-	scanDuration := time.Since(tStartScan)
-
-	telemetry.SBOMGenerationDuration.Observe(scanDuration.Seconds())
-
-	p.queue <- &model.SBOMEntity{
-		Type:               model.SBOMSourceType_HOST_FILE_SYSTEM,
-		Id:                 p.hostname,
-		GeneratedAt:        timestamppb.New(tStartScan),
-		Tags:               []string{},
-		InUse:              true,
-		GenerationDuration: convertDuration(scanDuration),
-		Sbom: &sbom.SBOMEntity_Cyclonedx{
-			Cyclonedx: convertBOM(cycloneDX),
-		},
-	}
-
-	return nil
 }
 
 func (p *processor) processImageSBOM(img *workloadmeta.ContainerImageMetadata) {
@@ -240,7 +258,7 @@ func (p *processor) processImageSBOM(img *workloadmeta.ContainerImageMetadata) {
 			RepoTags:           repoTags,
 			InUse:              inUse,
 			GenerationDuration: convertDuration(img.SBOM.GenerationDuration),
-			Sbom: &sbom.SBOMEntity_Cyclonedx{
+			Sbom: &protobuf.SBOMEntity_Cyclonedx{
 				Cyclonedx: convertBOM(img.SBOM.CycloneDXBOM),
 			},
 		}
