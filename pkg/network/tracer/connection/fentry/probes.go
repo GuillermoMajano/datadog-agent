@@ -64,18 +64,14 @@ const (
 
 	// sockFDLookupRet is the kretprobe used for mapping socket FDs to kernel sock structs
 	sockFDLookupRet = "sockfd_lookup_light_exit"
-
-	// doSendfileRet is the kretprobe used to trace traffic via SENDFILE(2) syscall
-	doSendfileRet = "do_sendfile_exit"
 )
 
 var programs = map[string]struct{}{
-	doSendfileRet:        {}, // TODO: available but sockfd_lookup_light not available on some kernels
 	inet6BindRet:         {},
 	inetBindRet:          {},
 	inetCskAcceptReturn:  {},
 	inetCskListenStop:    {},
-	sockFDLookupRet:      {}, // TODO: not available on certain kernels, will have to one or more hooks to get equivalent functionality; affects do_sendfile and HTTPS monitoring (OpenSSL/GnuTLS/GoTLS)
+	sockFDLookupRet:      {}, // TODO: not available on certain kernels, will have to one or more hooks to get equivalent functionality; affects HTTPS monitoring (OpenSSL/GnuTLS/GoTLS)
 	tcpRecvMsgReturn:     {},
 	tcpClose:             {},
 	tcpCloseReturn:       {},
@@ -125,7 +121,6 @@ func enabledPrograms(c *config.Config) (map[string]struct{}, error) {
 		// missing, err := ebpf.VerifyKernelFuncs(ksymPath, []string{"sockfd_lookup_light"})
 		// if err == nil && len(missing) == 0 {
 		// 	enableProgram(enabled, sockFDLookupRet)
-		// 	enableProgram(enabled, doSendfileRet)
 		// }
 	}
 

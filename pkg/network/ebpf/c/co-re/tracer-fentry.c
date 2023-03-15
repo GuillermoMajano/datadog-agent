@@ -573,33 +573,6 @@ int BPF_PROG(sockfd_lookup_light_exit, int fd, int *err, int *fput_needed, struc
     return 0;
 }
 
-SEC("fexit/do_sendfile")
-int BPF_PROG(do_sendfile_exit, int out_fd, int in_fd, loff_t *ppos,
-             size_t count, loff_t max, ssize_t sent) {
-    if (sent <= 0) {
-        return 0;
-    }
-
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_fd_t key = {
-        .pid = pid_tgid >> 32,
-        .fd = out_fd,
-    };
-    struct sock **sock = bpf_map_lookup_elem(&sock_by_pid_fd, &key);
-    if (sock == NULL) {
-        return 0;
-    }
-
-    conn_tuple_t t = {};
-    if (!read_conn_tuple(&t, *sock, pid_tgid, CONN_TYPE_TCP)) {
-        return 0;
-    }
-
-    handle_message(&t, sent, 0, CONN_DIRECTION_UNKNOWN, 0, 0, PACKET_COUNT_NONE, *sock);
-
-    return 0;
-}
-
 //endregion
 
 // This number will be interpreted by elf-loader to set the current running kernel version

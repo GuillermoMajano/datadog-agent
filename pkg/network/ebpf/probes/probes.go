@@ -151,12 +151,6 @@ const (
 
 	// SockFDLookupRet is the kretprobe used for mapping socket FDs to kernel sock structs
 	SockFDLookupRet ProbeFuncName = "kretprobe__sockfd_lookup_light"
-
-	// DoSendfile is the kprobe used to trace traffic via SENDFILE(2) syscall
-	DoSendfile ProbeFuncName = "kprobe__do_sendfile"
-
-	// DoSendfileRet is the kretprobe used to trace traffic via SENDFILE(2) syscall
-	DoSendfileRet ProbeFuncName = "kretprobe__do_sendfile"
 )
 
 // BPFMapName stores the name of the BPF maps storing statistics and other info
@@ -176,7 +170,6 @@ const (
 	ConntrackMap                      BPFMapName = "conntrack"
 	ConntrackTelemetryMap             BPFMapName = "conntrack_telemetry"
 	SockFDLookupArgsMap               BPFMapName = "sockfd_lookup_args"
-	DoSendfileArgsMap                 BPFMapName = "do_sendfile_args"
 	SockByPidFDMap                    BPFMapName = "sock_by_pid_fd"
 	PidFDBySockMap                    BPFMapName = "pid_fd_by_sock"
 	TcpSendMsgArgsMap                 BPFMapName = "tcp_sendmsg_args"

@@ -63,8 +63,6 @@ var mainProbes = []probes.ProbeFuncName{
 	probes.Inet6BindRet,
 	probes.SockFDLookup,
 	probes.SockFDLookupRet,
-	probes.DoSendfile,
-	probes.DoSendfileRet,
 }
 
 func initManager(mgr *manager.Manager, config *config.Config, closedHandler *ebpf.PerfHandler, runtimeTracer bool) {
@@ -82,7 +80,6 @@ func initManager(mgr *manager.Manager, config *config.Config, closedHandler *ebp
 		{Name: probes.SockByPidFDMap},
 		{Name: probes.PidFDBySockMap},
 		{Name: probes.SockFDLookupArgsMap},
-		{Name: probes.DoSendfileArgsMap},
 		{Name: probes.TcpSendMsgArgsMap},
 		{Name: probes.TcpSendPageArgsMap},
 		{Name: probes.IpMakeSkbArgsMap},

@@ -64,8 +64,6 @@ func enabledProbes(c *config.Config, runtimeTracer bool) (map[probes.ProbeFuncNa
 		if err == nil && len(missing) == 0 {
 			enableProbe(enabled, probes.SockFDLookup)
 			enableProbe(enabled, probes.SockFDLookupRet)
-			enableProbe(enabled, probes.DoSendfile)
-			enableProbe(enabled, probes.DoSendfileRet)
 		}
 	}
 
