@@ -8,6 +8,7 @@ package cloudproviders
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metadata/inventories"
@@ -102,14 +103,27 @@ func GetHostAliases(ctx context.Context) []string {
 		{name: kubernetes.CloudProviderName, callback: kubernetes.GetHostAliases},
 	}
 
+	// cloud providers endpoints can take a few seconds to answer. We're using a WaitGroup to call all of them
+	// concurrently since GetHostAliases is called during the agent startup and is blocking.
+	var wg sync.WaitGroup
+	m := sync.Mutex{}
+
 	for _, cloudAliasesDetector := range detectors {
-		cloudAliases, err := cloudAliasesDetector.callback(ctx)
-		if err != nil {
-			log.Debugf("no %s Host Alias: %s", cloudAliasesDetector.name, err)
-		} else if len(cloudAliases) > 0 {
-			aliases = append(aliases, cloudAliases...)
-		}
+		wg.Add(1)
+		go func(cloudAliasesDetector cloudProviderAliasesDetector) {
+			defer wg.Done()
+
+			cloudAliases, err := cloudAliasesDetector.callback(ctx)
+			if err != nil {
+				log.Debugf("no %s Host Alias: %s", cloudAliasesDetector.name, err)
+			} else if len(cloudAliases) > 0 {
+				m.Lock()
+				aliases = append(aliases, cloudAliases...)
+				m.Unlock()
+			}
+		}(cloudAliasesDetector)
 	}
+	wg.Wait()
 
 	return util.SortUniqInPlace(aliases)
 }
