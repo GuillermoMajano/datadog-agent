@@ -25,7 +25,7 @@ type hostinfo struct {
 }
 
 func newHostInfo(deps dependencies) (Component, error) {
-	hinfo, err := checks.CollectHostInfo()
+	hinfo, err := checks.CollectHostInfo(deps.Config)
 	if err != nil {
 		_ = deps.Logger.Critical("Error collecting host details:", err)
 		return nil, err
