@@ -31,7 +31,7 @@ instances:
 
 func TestGetExecutablePermissionsError(t *testing.T) {
 	secretBackendCommand = "some_command"
-	defer resetPackageVars()
+	t.Cleanup(resetPackageVars)
 
 	res, err := getExecutablePermissions()
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestGetExecutablePermissionsSuccess(t *testing.T) {
 
 func TestDebugInfoError(t *testing.T) {
 	secretBackendCommand = "some_command"
-	defer resetPackageVars()
+	t.Cleanup(resetPackageVars)
 
 	runCommand = func(string) ([]byte, error) {
 		res := []byte("{\"pass1\":{\"value\":\"password1\"},")
