@@ -29,7 +29,7 @@ instances:
 
 func TestGetExecutablePermissionsError(t *testing.T) {
 	secretBackendCommand = "some_command"
-	defer resetPackageVars()
+	t.Cleanup(resetPackageVars)
 
 	_, err := getExecutablePermissions()
 	assert.Error(t, err, "getExecutablePermissions should fail when secretBackendCommand file does not exists")
@@ -112,7 +112,7 @@ Secrets handle decrypted:
 
 func TestDebugInfoError(t *testing.T) {
 	secretBackendCommand = "some_command"
-	defer resetPackageVars()
+	t.Cleanup(resetPackageVars)
 
 	runCommand = func(string) ([]byte, error) {
 		res := []byte("{\"pass1\":{\"value\":\"password1\"},")
