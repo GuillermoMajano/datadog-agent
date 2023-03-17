@@ -142,7 +142,7 @@ func StopServer() {
 	}
 }
 
-// ServerAddress retruns the server address.
+// ServerAddress return the server address.
 func ServerAddress() *net.TCPAddr {
 	return listener.Addr().(*net.TCPAddr)
 }
